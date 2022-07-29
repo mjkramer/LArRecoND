@@ -119,6 +119,7 @@ void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryP
     if (!pSimGeom)
     {
         std::cout << "Could not find the geometry manager named " << parameters.m_geomManagerName << std::endl;
+        fileSource->Close();
         return;
     }
 
@@ -687,19 +688,19 @@ MCParticleEnergyMap CreateEDepSimMCParticles(const TG4Event &event, const pandor
 
     lar_content::LArMCParticleFactory mcParticleFactory;
 
-    // Create the primary MC neutrino, linked to the trajectories below
-    int neutrinoID(999999), neutrinoPDG(14), nuanceCode(1000);
-    TLorentzVector neutrinoVtx, neutrinoP4;
+    // Loop over the initial primary neutrinos, storing their IDs and vertex positions inside vectors
+    // since we need these to work out the associated neutrino ancestors for all MC trajectories
+    std::vector<pandora::CartesianVector> neutrinoVertices;
+    std::vector<int> neutrinoIDVector, nuanceCodeVector;
 
-    // Get the initial primary vertex
-    if (event.Primaries.size() > 0)
+    for (size_t i = 0; i < event.Primaries.size(); ++i)
     {
-        const TG4PrimaryVertex &g4PrimaryVtx = event.Primaries[0];
-        neutrinoVtx = g4PrimaryVtx.GetPosition() * parameters.m_lengthScale;
-        std::cout << "Neutrino vertex = " << neutrinoVtx.X() << ", " << neutrinoVtx.Y() << ", " << neutrinoVtx.Z() << std::endl;
+        const TG4PrimaryVertex &g4PrimaryVtx = event.Primaries[i];
+        const TLorentzVector neutrinoVtx = g4PrimaryVtx.GetPosition() * parameters.m_lengthScale;
+        //std::cout << "Neutrino vertex = " << neutrinoVtx.X() << ", " << neutrinoVtx.Y() << ", " << neutrinoVtx.Z() << std::endl;
 
         const std::string reaction(g4PrimaryVtx.GetReaction());
-        nuanceCode = GetNuanceCode(reaction);
+        const int nuanceCode = GetNuanceCode(reaction);
 
         // Get the primary vertex particle information
         if (g4PrimaryVtx.Informational.size() > 0)
@@ -712,31 +713,47 @@ MCParticleEnergyMap CreateEDepSimMCParticles(const TG4Event &event, const pandor
             {
                 const TG4PrimaryParticle &g4Primary = g4Info.Particles[0];
 
-                neutrinoID = g4Primary.GetTrackId();
-                neutrinoPDG = g4Primary.GetPDGCode();
-                neutrinoP4 = g4Primary.GetMomentum() * parameters.m_energyScale;
+                // The primary neutrinoIDs are usually the same value in a full spill event, e.g. -2.
+                // Introduce an artificial offset (the primary vertex number "i") to give unique IDs
+                const int neutrinoID = g4Primary.GetTrackId() - i;
+                const int neutrinoPDG = g4Primary.GetPDGCode();
+                const TLorentzVector neutrinoP4 = g4Primary.GetMomentum() * parameters.m_energyScale;
 
-                std::cout << "Neutrino ID = " << neutrinoID << ", PDG = " << neutrinoPDG << ", E = " << neutrinoP4.E()
-                          << ", px = " << neutrinoP4.Px() << ", py = " << neutrinoP4.Py() << ", pz = " << neutrinoP4.Pz() << std::endl;
+                //std::cout << "Neutrino ID = " << neutrinoID << ", PDG = " << neutrinoPDG << ", E = " << neutrinoP4.E()
+                //        << ", px = " << neutrinoP4.Px() << ", py = " << neutrinoP4.Py() << ", pz = " << neutrinoP4.Pz() << std::endl;
+
+                lar_content::LArMCParticleParameters mcNeutrinoParameters;
+                mcNeutrinoParameters.m_nuanceCode = nuanceCode;
+                mcNeutrinoParameters.m_process = lar_content::MC_PROC_INCIDENT_NU;
+                mcNeutrinoParameters.m_energy = neutrinoP4.E();
+                mcNeutrinoParameters.m_momentum = pandora::CartesianVector(neutrinoP4.Px(), neutrinoP4.Py(), neutrinoP4.Pz());
+                mcNeutrinoParameters.m_vertex = pandora::CartesianVector(neutrinoVtx.X(), neutrinoVtx.Y(), neutrinoVtx.Z());
+                mcNeutrinoParameters.m_endpoint = pandora::CartesianVector(neutrinoVtx.X(), neutrinoVtx.Y(), neutrinoVtx.Z());
+                mcNeutrinoParameters.m_particleId = neutrinoPDG;
+                mcNeutrinoParameters.m_mcParticleType = pandora::MC_3D;
+                mcNeutrinoParameters.m_pParentAddress = (void *)((intptr_t)neutrinoID);
+
+                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                    PandoraApi::MCParticle::Create(*pPrimaryPandora, mcNeutrinoParameters, mcParticleFactory));
+
+                // Keep track of neutrino vertex, ID and reaction code
+                neutrinoVertices.emplace_back(mcNeutrinoParameters.m_vertex.Get());
+                neutrinoIDVector.emplace_back(neutrinoID);
+                nuanceCodeVector.emplace_back(nuanceCode);
             }
         }
     }
 
-    lar_content::LArMCParticleParameters mcNeutrinoParameters;
-    mcNeutrinoParameters.m_nuanceCode = nuanceCode;
-    mcNeutrinoParameters.m_process = lar_content::MC_PROC_INCIDENT_NU;
-    mcNeutrinoParameters.m_energy = neutrinoP4.E();
-    mcNeutrinoParameters.m_momentum = pandora::CartesianVector(neutrinoP4.Px(), neutrinoP4.Py(), neutrinoP4.Pz());
-    mcNeutrinoParameters.m_vertex = pandora::CartesianVector(neutrinoVtx.X(), neutrinoVtx.Y(), neutrinoVtx.Z());
-    mcNeutrinoParameters.m_endpoint = pandora::CartesianVector(neutrinoVtx.X(), neutrinoVtx.Y(), neutrinoVtx.Z());
-    mcNeutrinoParameters.m_particleId = neutrinoPDG;
-    mcNeutrinoParameters.m_mcParticleType = pandora::MC_3D;
-    mcNeutrinoParameters.m_pParentAddress = (void *)((intptr_t)neutrinoID);
-    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcNeutrinoParameters, mcParticleFactory));
-
     std::cout << "Creating MC Particles from the Geant4 event trajectories" << std::endl;
 
     // Loop over trajectories
+    std::cout << "Number of trajectories = " << event.Trajectories.size() << std::endl;
+
+    // Keep track of the primary Nuance codes for the trajectories using a map[trackID] container.
+    // The trackIDs and their parentIDs will be in cascading historical order in the trajectory loop,
+    // meaning that a given trajectory's parentID will have been previously stored in the map
+    std::map<int, int> trajNuanceCodes;
+
     for (const TG4Trajectory &g4Traj : event.Trajectories)
     {
         // LArMCParticle parameters
@@ -751,7 +768,6 @@ MCParticleEnergyMap CreateEDepSimMCParticles(const TG4Event &event, const pandor
         // Particle codes
         mcParticleParameters.m_particleId = g4Traj.GetPDGCode();
         mcParticleParameters.m_mcParticleType = pandora::MC_3D;
-        mcParticleParameters.m_nuanceCode = mcNeutrinoParameters.m_nuanceCode.Get();
 
         // Set unique parent integer address using trackID
         const int trackID = g4Traj.GetTrackId();
@@ -770,6 +786,7 @@ MCParticleEnergyMap CreateEDepSimMCParticles(const TG4Event &event, const pandor
             const TG4TrajectoryPoint end = trajPoints[nPoints - 1];
             const TLorentzVector endPos = end.GetPosition() * parameters.m_lengthScale;
             mcParticleParameters.m_endpoint = pandora::CartesianVector(endPos.X(), endPos.Y(), endPos.Z());
+
             // Process ID
             mcParticleParameters.m_process = start.GetProcess();
         }
@@ -781,23 +798,49 @@ MCParticleEnergyMap CreateEDepSimMCParticles(const TG4Event &event, const pandor
             mcParticleParameters.m_process = lar_content::MC_PROC_UNKNOWN;
         }
 
+        // Set parent relationship and nuance interaction code
+        mcParticleParameters.m_nuanceCode = 0;
+        const int trajParentID = g4Traj.GetParentId();
+
+        int parentID{trajParentID};
+        if (trajParentID < 0) // link to MC neutrino
+        {
+            // In full spill events, GetParentId() will always return -1 for those particles originating from
+            // any neutrino interaction vertex. So we need to compare and match this track's vertex position
+            // with the list of primary neutrino vertices to get the required unique neutrino parent ID entry
+            // and Nuance reaction code. This also works for single neutrino events
+
+            for (size_t iV = 0; iV < neutrinoVertices.size(); ++iV)
+            {
+                // Compare the distance squared between the trajectory and neutrino vertices
+                const pandora::CartesianVector nuVtx = neutrinoVertices[iV];
+                if (nuVtx.GetDistanceSquared(mcParticleParameters.m_vertex.Get()) < std::numeric_limits<float>::epsilon())
+                {
+                    // Vertex positions match
+                    parentID = neutrinoIDVector[iV];
+                    const int nuanceValue = nuanceCodeVector[iV];
+                    mcParticleParameters.m_nuanceCode = nuanceValue;
+                    trajNuanceCodes[trackID] = nuanceValue;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // Retrieve the Nuance code using its parentID entry
+            const int nuanceValue = trajNuanceCodes.find(parentID) != trajNuanceCodes.end() ? trajNuanceCodes[parentID] : 0;
+            // Set the Nuance code for this trackID; any secondary particle will then retrieve this value
+            trajNuanceCodes[trackID] = nuanceValue;
+            mcParticleParameters.m_nuanceCode = nuanceValue;
+        }
+
         // Create MCParticle
         PANDORA_THROW_RESULT_IF(
             pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcParticleParameters, mcParticleFactory));
 
-        // Set parent relationships
-        const int parentID = g4Traj.GetParentId();
-
-        if (parentID < 0) // link to mc neutrino
-        {
-            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)neutrinoID), (void *)((intptr_t)trackID)));
-        }
-        else
-        {
-            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)parentID), (void *)((intptr_t)trackID)));
-        }
+        // Store the parentID, which will recursively find the primary neutrino if required
+        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+            PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)parentID), (void *)((intptr_t)trackID)));
 
         // Store particle energy for given trackID
         energyMap[trackID] = energy;
@@ -976,7 +1019,7 @@ int GetNuanceCode(const std::string &reaction)
     else if (is_mec)
         code = 10;
 
-    std::cout << "Reaction " << reaction << " has code = " << code << std::endl;
+    //std::cout << "Reaction " << reaction << " has code = " << code << std::endl;
 
     return code;
 }
