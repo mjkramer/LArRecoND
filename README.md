@@ -1,17 +1,17 @@
-# LArReco
-[![Build Status](https://travis-ci.org/PandoraPFA/LArReco.svg?branch=master)](https://travis-ci.org/PandoraPFA/LArReco)
-[![Coverity Scan Build Status](https://scan.coverity.com/projects/13060/badge.svg)](https://scan.coverity.com/projects/pandorapfa-larreco)
+# LArRecoND
+<!-- [![Build Status](https://travis-ci.org/PandoraPFA/LArRecoND.svg?branch=master)](https://travis-ci.org/PandoraPFA/LArRecoND) -->
+<!-- [![Coverity Scan Build Status](https://scan.coverity.com/projects/13060/badge.svg)](https://scan.coverity.com/projects/pandorapfa-larrecond) -->
 
-Standalone Pandora application for testing/developing LAr TPC reconstruction
+Standalone Pandora application for testing/developing DUNE ND reconstruction
 
-LArReco is distributed under the [GPLv3 License](http://www.gnu.org/licenses/gpl-3.0.en.html)
+LArRecoND is distributed under the [GPLv3 License](http://www.gnu.org/licenses/gpl-3.0.en.html)
 
 [![License](https://www.gnu.org/graphics/gplv3-127x51.png)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
 ## License and Copyright
-Copyright (C), LArReco Authors
+Copyright (C), LArRecoND Authors
 
-LArReco is free software: you can redistribute it and/or modify
+LArRecoND is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
