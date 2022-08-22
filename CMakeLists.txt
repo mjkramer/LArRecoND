@@ -1,13 +1,13 @@
-# cmake file for building LArReco
+# cmake file for building LArRecoND
 #-------------------------------------------------------------------------------------------------------------------------------------------
 cmake_minimum_required(VERSION 2.8.2 FATAL_ERROR)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-    message(FATAL_ERROR "LArReco requires an out-of-source build.")
+    message(FATAL_ERROR "LArRecoND requires an out-of-source build.")
 endif()
 
 # project name
-project(LArReco)
+project(LArRecoND)
 
 # project version
 set(${PROJECT_NAME}_VERSION_MAJOR 03)
@@ -70,10 +70,10 @@ endif()
 # Build products
 
 # - Collect sources - not ideal because you have to keep running CMake to pick up changes
-#file(GLOB_RECURSE LAR_RECO_SRCS RELATIVE ${PROJECT_SOURCE_DIR} "src/*.cxx")
+#file(GLOB_RECURSE LAR_RECO_ND_SRCS RELATIVE ${PROJECT_SOURCE_DIR} "src/*.cxx")
 
 # - Add library and properties
-#add_library(${PROJECT_NAME} SHARED ${LAR_RECO_SRCS})
+#add_library(${PROJECT_NAME} SHARED ${LAR_RECO_ND_SRCS})
 #set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${${PROJECT_NAME}_VERSION} SOVERSION ${${PROJECT_NAME}_SOVERSION})
 
 # - Executable
@@ -85,8 +85,8 @@ endif()
 #target_link_libraries(PandoraInterface ${PROJECT_NAME})
 
 # - Optional documents
-option(LArReco_BUILD_DOCS "Build documentation for ${PROJECT_NAME}" OFF)
-if(LArReco_BUILD_DOCS)
+option(LArRecoND_BUILD_DOCS "Build documentation for ${PROJECT_NAME}" OFF)
+if(LArRecoND_BUILD_DOCS)
     add_subdirectory(doc)
 endif()
 
