@@ -14,24 +14,6 @@
         <CurrentCaloHitListReplacement>CaloHitList2D</CurrentCaloHitListReplacement>
     </algorithm>
 
-<!--
-    <algorithm type = "LArVisualMonitoring">
-        <MCParticleListNames>Input</MCParticleListNames> -->
-        <!--Suppress neutrons (PDG=2112) with E < 0.95 GeV-->
-<!--        <SuppressMCParticles>2112:0.95</SuppressMCParticles>
-	<CaloHitListNames>CaloHitListU CaloHitListV CaloHitListW</CaloHitListNames>
-        <ShowDetector>true</ShowDetector>
-    </algorithm>
--->
-
-<!--
-    <algorithm type = "LArHierarchyMonitoring">
-      <CaloHitListName>CaloHitList2D</CaloHitListName>
-      <VisualizeMC>true</VisualizeMC>
-      <CollectionOnly>true</CollectionOnly>
-    </algorithm>
--->
-
     <algorithm type = "LArMaster">
         <CRSettingsFile>PandoraSettings_Cosmic_Standard.xml</CRSettingsFile>
         <!--Use MicroBooNE neutrino algorithms for now-->
@@ -61,41 +43,6 @@
         <MCParticleListName>Input</MCParticleListName>
         <MinHitsForDisplay>0</MinHitsForDisplay>
     </algorithm>
-
-<!--
-    <algorithm type = "LArNeutrinoEventValidation">
-        <CaloHitListName>CaloHitList2D</CaloHitListName>
-        <MCParticleListName>Input</MCParticleListName>
-        <PfoListName>RecreatedPfos</PfoListName>
-        <UseTrueNeutrinosOnly>true</UseTrueNeutrinosOnly>
-        <PrintAllToScreen>true</PrintAllToScreen>
-        <PrintMatchingToScreen>true</PrintMatchingToScreen>
-        <WriteToTree>true</WriteToTree>
-        <OutputTree>Validation</OutputTree>
-        <OutputFile>Validation.root</OutputFile>
-    </algorithm>
--->
-<!--
-    <algorithm type = "LArVisualMonitoring">
-        <ShowCurrentPfos>true</ShowCurrentPfos>
-        <ShowDetector>true</ShowDetector>
-    </algorithm>
--->
-
-<!--
-    <algorithm type = "LArVisualParticleMonitoring">
-        <CaloHitListName>CaloHitList2D</CaloHitListName>
-        <PfoListName>RecreatedPfos</PfoListName>
-        <VisualizePFO>true</VisualizePFO>
-    </algorithm>
--->
-<!--
-    <algorithm type = "LArVisualParticleMonitoring">
-      <CaloHitListName>CaloHitList2D</CaloHitListName>
-        <PfoListName>SliceParticles</PfoListName>
-        <VisualizePFO>true</VisualizePFO>
-    </algorithm>
--->
 
 <algorithm type = "LArHierarchyValidation">
    <ValidateEvent>true</ValidateEvent>
