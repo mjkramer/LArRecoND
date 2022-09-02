@@ -5,7 +5,6 @@
     <SingleHitTypeClusteringMode>true</SingleHitTypeClusteringMode>
 
     <!-- ALGORITHM SETTINGS -->
-    <!--algorithm type = "LArEventReading"/-->
     <algorithm type = "LArPreProcessing">
         <OutputCaloHitListNameU>CaloHitListU</OutputCaloHitListNameU>
         <OutputCaloHitListNameV>CaloHitListV</OutputCaloHitListNameV>
@@ -44,25 +43,25 @@
         <MinHitsForDisplay>0</MinHitsForDisplay>
     </algorithm>
 
-<algorithm type = "LArHierarchyValidation">
-   <ValidateEvent>true</ValidateEvent>
-   <WriteTree>true</WriteTree>
-   <FileName>EventHierarchy.root</FileName>
-   <TreeName>EventHierarchy</TreeName>
-   <FoldToPrimaries>true</FoldToPrimaries>
-</algorithm>
+    <algorithm type = "LArHierarchyValidation">
+        <ValidateEvent>true</ValidateEvent>
+	<WriteTree>true</WriteTree>
+	<FileName>EventHierarchy.root</FileName>
+	<TreeName>EventHierarchy</TreeName>
+	<FoldToPrimaries>true</FoldToPrimaries>
+    </algorithm>
 
-<algorithm type = "LArHierarchyValidation">
-   <ValidateMC>true</ValidateMC>
-   <WriteTree>true</WriteTree>
-   <FileName>MCHierarchy.root</FileName>
-   <TreeName>MCHierarchy</TreeName>
-   <FoldToPrimaries>true</FoldToPrimaries>
-</algorithm>
+    <algorithm type = "LArHierarchyValidation">
+        <ValidateMC>true</ValidateMC>
+	<WriteTree>true</WriteTree>
+	<FileName>MCHierarchy.root</FileName>
+	<TreeName>MCHierarchy</TreeName>
+	<FoldToPrimaries>true</FoldToPrimaries>
+    </algorithm>
 
-<algorithm type = "LArHierarchyMonitoring">
-   <PerformMatching>true</PerformMatching>
-   <CollectionOnly>false</CollectionOnly>
-</algorithm>
+    <algorithm type = "LArHierarchyMonitoring">
+        <PerformMatching>true</PerformMatching>
+	<CollectionOnly>false</CollectionOnly>
+    </algorithm>
 
 </pandora>
