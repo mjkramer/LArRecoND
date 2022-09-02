@@ -47,16 +47,16 @@
 <algorithm type = "LArHierarchyValidation">
    <ValidateEvent>true</ValidateEvent>
    <WriteTree>true</WriteTree>
-   <FileName>EventValidation.root</FileName>
-   <TreeName>EventValidation</TreeName>
+   <FileName>EventHierarchy.root</FileName>
+   <TreeName>EventHierarchy</TreeName>
    <FoldToPrimaries>true</FoldToPrimaries>
 </algorithm>
 
 <algorithm type = "LArHierarchyValidation">
    <ValidateMC>true</ValidateMC>
    <WriteTree>true</WriteTree>
-   <FileName>MCValidation.root</FileName>
-   <TreeName>MCValidation</TreeName>
+   <FileName>MCHierarchy.root</FileName>
+   <TreeName>MCHierarchy</TreeName>
    <FoldToPrimaries>true</FoldToPrimaries>
 </algorithm>
 
