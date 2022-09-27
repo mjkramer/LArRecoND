@@ -234,6 +234,12 @@ LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Pa
  */
 LArVoxelList MergeSameVoxels(const LArVoxelList &voxelList);
 
+LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits);
+
+float GetMCEnergyFraction(const MCParticleEnergyMap &mcEnergyMap, const float voxelE, const int trackID);
+
+lar_content::LArCaloHitParameters MakeDefaultCaloHitParams(float voxelWidth);
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 /**

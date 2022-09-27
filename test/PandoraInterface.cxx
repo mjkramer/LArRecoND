@@ -364,7 +364,8 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
             const LArVoxelList mergedVoxels = MergeSameVoxels(voxelList);
 
             std::cout << "Produced " << mergedVoxels.size() << " merged voxels from " << voxelList.size() << " voxels." << std::endl;
-
+            voxelList.clear();
+  
             // Stop processing the event if we have too many voxels: reco takes too long
             if (parameters.m_maxMergedVoxels > 0 && mergedVoxels.size() > parameters.m_maxMergedVoxels)
             {
@@ -529,8 +530,6 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
 
         ndsim->GetEntry(iEvt);
 
-        int hitCounter(0);
-
         // Create MCParticles from Geant4 trajectories
         MCParticleEnergyMap MCEnergyMap;
         for (size_t imcp = 0; imcp < larsed.mcp_id->size(); ++imcp)
@@ -580,90 +579,101 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
             break;
         }
 
-        // Loop over the voxels and make them into caloHits
-        for (const LArVoxel &voxel : mergedVoxels)
+        const float MipE = 0.00075;
+        lar_content::LArCaloHitParameters caloHitParameters = MakeDefaultCaloHitParams(voxelWidth);
+        int hitCounter{0};
+
+        if (parameters.m_use3D)
         {
-            const pandora::CartesianVector voxelPos(voxel.m_voxelPosVect);
-            const float voxelE = voxel.m_energyInVoxel;
-            const float MipE = 0.00075;
-            const float voxelMipEquivalentE = voxelE / MipE;
-
-            if (voxelMipEquivalentE > parameters.m_minVoxelMipEquivE)
+            for (unsigned int v = 0; v < mergedVoxels.size(); ++v)
             {
-                lar_content::LArCaloHitParameters caloHitParameters;
-                caloHitParameters.m_positionVector = voxelPos;
-                caloHitParameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
-                caloHitParameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
-                caloHitParameters.m_cellGeometry = pandora::RECTANGULAR;
-                caloHitParameters.m_cellSize0 = voxelWidth;
-                caloHitParameters.m_cellSize1 = voxelWidth;
-                caloHitParameters.m_cellThickness = voxelWidth;
-                caloHitParameters.m_nCellRadiationLengths = 1.f;
-                caloHitParameters.m_nCellInteractionLengths = 1.f;
-                caloHitParameters.m_time = 0.f;
-                caloHitParameters.m_inputEnergy = voxelE;
-                caloHitParameters.m_mipEquivalentEnergy = voxelMipEquivalentE;
-                caloHitParameters.m_electromagneticEnergy = voxelE;
-                caloHitParameters.m_hadronicEnergy = voxelE;
-                caloHitParameters.m_isDigital = false;
-                caloHitParameters.m_hitType = pandora::TPC_3D;
-                caloHitParameters.m_hitRegion = pandora::SINGLE_REGION;
-                caloHitParameters.m_layer = 0;
-                caloHitParameters.m_isInOuterSamplingLayer = false;
-                caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
-                caloHitParameters.m_larTPCVolumeId = 0;
-                caloHitParameters.m_daughterVolumeId = 0;
-
-                if (parameters.m_use3D)
+                const LArVoxel voxel = mergedVoxels.at(v);
+                const pandora::CartesianVector voxelPos(voxel.m_voxelPosVect);
+                const float voxelE = voxel.m_energyInVoxel;
+                const float voxelMipEquivalentE = voxelE / MipE;
+    
+                if (voxelMipEquivalentE > parameters.m_minVoxelMipEquivE)
+                {
+                    // Modify the important fields
+                    caloHitParameters.m_positionVector = voxelPos;
+                    caloHitParameters.m_inputEnergy = voxelE;
+                    caloHitParameters.m_mipEquivalentEnergy = voxelMipEquivalentE;
+                    caloHitParameters.m_electromagneticEnergy = voxelE;
+                    caloHitParameters.m_hadronicEnergy = voxelE;
+                    caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
+    
                     PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
                         PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
+    
+                    // Set calo hit voxel to MCParticle relation using trackID
+                    const int trackID = voxel.m_trackID;
+                    const float energyFrac = GetMCEnergyFraction(MCEnergyMap, voxelE, trackID);
+                    PandoraApi::SetCaloHitToMCParticleRelationship(*pPrimaryPandora, (void *)((intptr_t)hitCounter), (void *)((intptr_t)trackID), energyFrac);
+                }
+            }
+        }
 
-                if (parameters.m_useLArTPC)
+        // Treat the 3 x 2D view case separately as we need to merge hits
+        // on some of the views depending on the geometry
+        if (parameters.m_useLArTPC)
+        {
+            LArVoxelProjectionList voxelProjectionsU;
+            LArVoxelProjectionList voxelProjectionsV;
+            LArVoxelProjectionList voxelProjectionsW;
+
+            for (unsigned int v = 0; v < mergedVoxels.size(); ++v)
+            {
+                const LArVoxel &voxel = mergedVoxels.at(v);
+                const pandora::CartesianVector voxelPos = voxel.m_voxelPosVect;
+                const float uPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoU(voxelPos.GetY(),voxelPos.GetZ()));
+                voxelProjectionsU.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,uPos,voxelPos.GetX(),pandora::TPC_VIEW_U,voxel.m_trackID));
+
+                const float vPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoV(voxelPos.GetY(),voxelPos.GetZ()));
+                voxelProjectionsV.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,vPos,voxelPos.GetX(),pandora::TPC_VIEW_V,voxel.m_trackID));
+
+                const float wPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoW(voxelPos.GetY(),voxelPos.GetZ()));
+                voxelProjectionsW.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,wPos,voxelPos.GetX(),pandora::TPC_VIEW_W,voxel.m_trackID));
+            }
+      
+            std::vector<LArVoxelProjectionList> viewProjections;
+            viewProjections.emplace_back(MergeSameProjections(voxelProjectionsU));
+            viewProjections.emplace_back(MergeSameProjections(voxelProjectionsV));
+            viewProjections.emplace_back(MergeSameProjections(voxelProjectionsW));
+            
+            voxelProjectionsU.clear();
+            voxelProjectionsV.clear();
+            voxelProjectionsW.clear();
+
+            for (const LArVoxelProjectionList &view : viewProjections)
+            {
+                for (const LArVoxelProjection &hit : view)
                 {
-                    // Create U, V and W views assuming x is the common drift coordinate
-                    const float x0_cm(voxelPos.GetX());
-                    const float y0_cm(voxelPos.GetY());
-                    const float z0_cm(voxelPos.GetZ());
+                    const float voxelE = hit.m_energy;
+                    const float voxelMipEquivalentE = voxelE / MipE;
+                    
+                    if (voxelMipEquivalentE < parameters.m_minVoxelMipEquivE)
+                        continue;
 
-                    lar_content::LArCaloHitParameters caloHitPars_UView(caloHitParameters);
-                    caloHitPars_UView.m_hitType = pandora::TPC_VIEW_U;
-                    const float upos_cm(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoU(y0_cm, z0_cm));
-                    caloHitPars_UView.m_positionVector = pandora::CartesianVector(x0_cm, 0.f, upos_cm);
-
-                    lar_content::LArCaloHitParameters caloHitPars_VView(caloHitParameters);
-                    caloHitPars_VView.m_hitType = pandora::TPC_VIEW_V;
-                    const float vpos_cm(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoV(y0_cm, z0_cm));
-                    caloHitPars_VView.m_positionVector = pandora::CartesianVector(x0_cm, 0.f, vpos_cm);
-
-                    lar_content::LArCaloHitParameters caloHitPars_WView(caloHitParameters);
-                    caloHitPars_WView.m_hitType = pandora::TPC_VIEW_W;
-                    const float wpos_cm(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoW(y0_cm, z0_cm));
-                    caloHitPars_WView.m_positionVector = pandora::CartesianVector(x0_cm, 0.f, wpos_cm);
-
+                    // Modify the important fields
+                    caloHitParameters.m_positionVector = pandora::CartesianVector(hit.m_drift,0.f,hit.m_wire);
+                    caloHitParameters.m_inputEnergy = voxelE;
+                    caloHitParameters.m_mipEquivalentEnergy = voxelMipEquivalentE;
+                    caloHitParameters.m_electromagneticEnergy = voxelE;
+                    caloHitParameters.m_hadronicEnergy = voxelE;
+                    caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
+                    caloHitParameters.m_hitType = hit.m_view;
+    
                     // Create LArCaloHits for U, V and W views
                     PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                        PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_UView, m_larCaloHitFactory));
-                    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                        PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_VView, m_larCaloHitFactory));
-                    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                        PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_WView, m_larCaloHitFactory));
-                }
-
-                // Set calo hit voxel to MCParticle relation using trackID
-                const int trackID = voxel.m_trackID;
-
-                // Find the energy fraction: voxelHitE/MCParticleE
-                float energyFrac(0.f), MCEnergy(0.f);
-                MCParticleEnergyMap::const_iterator mapIter = MCEnergyMap.find(trackID);
-                if (mapIter != MCEnergyMap.end())
-                    MCEnergy = mapIter->second;
-
-                if (MCEnergy > 0.0)
-                    energyFrac = voxelE / MCEnergy;
-
-                PandoraApi::SetCaloHitToMCParticleRelationship(*pPrimaryPandora, (void *)((intptr_t)hitCounter), (void *)((intptr_t)trackID), energyFrac);
-            }
-        } // end voxel loop
+                        PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
+                
+                    // Set calo hit voxel to MCParticle relation using trackID
+                    const int trackID = hit.m_trackID;
+                    const float energyFrac = GetMCEnergyFraction(MCEnergyMap, voxelE, trackID);
+                    PandoraApi::SetCaloHitToMCParticleRelationship(*pPrimaryPandora, (void *)((intptr_t)hitCounter), (void *)((intptr_t)trackID), energyFrac);
+                } // end voxel projection loop
+            } // end view loop
+        }
 
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
@@ -1245,8 +1255,8 @@ LArVoxelList MergeSameVoxels(const std::vector<LArVoxel> &voxelList)
 
         LArVoxel voxel1 = voxelList[i];
         float voxE1 = voxel1.m_energyInVoxel;
-        const long id1 = voxel1.m_voxelID;
-        const int trackid1 = voxel1.m_trackID;
+        std::map<int,float> trackIDToEnergy;
+        trackIDToEnergy[voxel1.m_trackID] = voxE1;
 
         // Loop over other voxels (from i+1) and check if we have an ID match.
         // If so, add their energies and only store the combined voxel at the end
@@ -1257,19 +1267,43 @@ LArVoxelList MergeSameVoxels(const std::vector<LArVoxel> &voxelList)
                 continue;
 
             const LArVoxel voxel2 = voxelList[j];
-            const long id2 = voxel2.m_voxelID;
             const int trackid2 = voxel2.m_trackID;
-
-            if (id2 == id1 && trackid1 == trackid2)
+            const float voxE2 = voxel2.m_energyInVoxel;
+//            if (id2 == id1 && trackid1 == trackid2)
+            if (voxel2.m_voxelID == voxel1.m_voxelID)
             {
                 // IDs match. Add energy and set processed integer
-                voxE1 += voxel2.m_energyInVoxel;
+                voxE1 += voxE2;
                 processed[j] = true;
+                // Amend the true particle contribution map
+                if (trackIDToEnergy.count(trackid2) != 0)
+                    trackIDToEnergy[trackid2] += voxE2;
+                else
+                    trackIDToEnergy[trackid2] = voxE2;
             }
         }
 
         // Add combined (or untouched) voxel to the merged list
         voxel1.SetEnergy(voxE1);
+        // Update the track ID if necessary
+        if (trackIDToEnergy.size() > 1)
+        {
+            float highestEnergy{0.f};
+            int bestTrackID{-1};
+//            std::cout << "Merged voxel had contributions from " << trackIDToEnergy.size() << " particles" << std::endl;
+            for (auto const &pair : trackIDToEnergy)
+            {
+//                std::cout << " - " << pair.first << " with energy " << pair.second << std::endl;
+                if (pair.second > highestEnergy)
+                {
+                    highestEnergy = pair.second;
+                    bestTrackID = pair.first;
+                }
+            }
+//            std::cout << " = chose track id " << bestTrackID << std::endl;
+            voxel1.SetTrackID(bestTrackID);
+        }
+
         mergedVoxels.emplace_back(voxel1);
 
         // We have processed the ith voxel
@@ -1277,6 +1311,96 @@ LArVoxelList MergeSameVoxels(const std::vector<LArVoxel> &voxelList)
     }
 
     return mergedVoxels;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits)
+{
+    LArVoxelProjectionList outputHits;
+    std::vector<bool> areUsed(hits.size(),false);    
+
+    for (unsigned int vp1 = 0; vp1 < hits.size(); ++vp1)
+    {
+        if(areUsed.at(vp1))
+            continue;
+
+        LArVoxelProjection voxProj1{hits.at(vp1)};
+        float bestEnergy{voxProj1.m_energy};
+        int bestTrackID{voxProj1.m_trackID};
+        for (unsigned int vp2 = vp1 + 1; vp2 < hits.size(); ++vp2)
+        {
+            if (areUsed.at(vp2))
+                continue;
+
+            const LArVoxelProjection &voxProj2 = hits.at(vp2);
+
+            if ((voxProj1.m_wire != voxProj2.m_wire) || (voxProj1.m_drift != voxProj2.m_drift)) 
+                continue;
+
+            // Add the energy, but keep track of the highest energy contributor
+            voxProj1.m_energy += voxProj2.m_energy;
+            if (voxProj2.m_energy > bestEnergy)
+            {
+                bestEnergy = voxProj2.m_energy;
+                bestTrackID = voxProj2.m_trackID;
+            }
+            areUsed.at(vp2) = true;
+        }
+        // Add the hit to the output
+        areUsed.at(vp1) = true;
+        voxProj1.m_trackID = bestTrackID;
+        outputHits.emplace_back(voxProj1);
+    }
+
+    std::cout << outputHits.size() << " projected hits remain after merging" << std::endl;
+    return outputHits;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+float GetMCEnergyFraction(const MCParticleEnergyMap &mcEnergyMap, const float voxelE, const int trackID)
+{
+    // Find the energy fraction: voxelHitE/MCParticleE
+    float energyFrac(0.f), MCEnergy(0.f);
+    MCParticleEnergyMap::const_iterator mapIter = mcEnergyMap.find(trackID);
+    if (mapIter != mcEnergyMap.end())
+        MCEnergy = mapIter->second;
+
+    if (MCEnergy > 0.0)
+        energyFrac = voxelE / MCEnergy;
+
+    return energyFrac;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+lar_content::LArCaloHitParameters MakeDefaultCaloHitParams(float voxelWidth)
+{
+    lar_content::LArCaloHitParameters caloHitParameters;
+    caloHitParameters.m_positionVector = pandora::CartesianVector(0.f, 0.f, 1.f);
+    caloHitParameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
+    caloHitParameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
+    caloHitParameters.m_cellGeometry = pandora::RECTANGULAR;
+    caloHitParameters.m_cellSize0 = voxelWidth;
+    caloHitParameters.m_cellSize1 = voxelWidth;
+    caloHitParameters.m_cellThickness = voxelWidth;
+    caloHitParameters.m_nCellRadiationLengths = 1.f;
+    caloHitParameters.m_nCellInteractionLengths = 1.f;
+    caloHitParameters.m_time = 0.f;
+    caloHitParameters.m_inputEnergy = 0.f;
+    caloHitParameters.m_mipEquivalentEnergy = 0.f;
+    caloHitParameters.m_electromagneticEnergy = 0.f;
+    caloHitParameters.m_hadronicEnergy = 0.f;
+    caloHitParameters.m_isDigital = false;
+    caloHitParameters.m_hitType = pandora::TPC_3D;
+    caloHitParameters.m_hitRegion = pandora::SINGLE_REGION;
+    caloHitParameters.m_layer = 0;
+    caloHitParameters.m_isInOuterSamplingLayer = false;
+    caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(0));
+    caloHitParameters.m_larTPCVolumeId = 0;
+    caloHitParameters.m_daughterVolumeId = 0;
+    return caloHitParameters;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
