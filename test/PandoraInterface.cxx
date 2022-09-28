@@ -592,24 +592,24 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
                 const float voxelE = voxel.m_energyInVoxel;
                 const float voxelMipEquivalentE = voxelE / MipE;
     
-                if (voxelMipEquivalentE > parameters.m_minVoxelMipEquivE)
-                {
-                    // Modify the important fields
-                    caloHitParameters.m_positionVector = voxelPos;
-                    caloHitParameters.m_inputEnergy = voxelE;
-                    caloHitParameters.m_mipEquivalentEnergy = voxelMipEquivalentE;
-                    caloHitParameters.m_electromagneticEnergy = voxelE;
-                    caloHitParameters.m_hadronicEnergy = voxelE;
-                    caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
+                if (voxelMipEquivalentE < parameters.m_minVoxelMipEquivE)
+                    continue;
+
+                // Modify the important fields
+                caloHitParameters.m_positionVector = voxelPos;
+                caloHitParameters.m_inputEnergy = voxelE;
+                caloHitParameters.m_mipEquivalentEnergy = voxelMipEquivalentE;
+                caloHitParameters.m_electromagneticEnergy = voxelE;
+                caloHitParameters.m_hadronicEnergy = voxelE;
+                caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
     
-                    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                        PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
+                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                    PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
     
-                    // Set calo hit voxel to MCParticle relation using trackID
-                    const int trackID = voxel.m_trackID;
-                    const float energyFrac = GetMCEnergyFraction(MCEnergyMap, voxelE, trackID);
-                    PandoraApi::SetCaloHitToMCParticleRelationship(*pPrimaryPandora, (void *)((intptr_t)hitCounter), (void *)((intptr_t)trackID), energyFrac);
-                }
+                // Set calo hit voxel to MCParticle relation using trackID
+                const int trackID = voxel.m_trackID;
+                const float energyFrac = GetMCEnergyFraction(MCEnergyMap, voxelE, trackID);
+                PandoraApi::SetCaloHitToMCParticleRelationship(*pPrimaryPandora, (void *)((intptr_t)hitCounter), (void *)((intptr_t)trackID), energyFrac);
             }
         }
 
@@ -866,6 +866,8 @@ void CreateSEDMCParticles(const LArSED &larsed, const pandora::Pandora *const pP
     lar_content::LArMCParticleFactory mcParticleFactory;
 
     const int nuidoffset(100000000);
+
+    std::cout << "Read in " << larsed.nuPDG->size() << " true neutrinos" << std::endl;
 
     // Create MC neutrinos
     for (size_t i = 0; i < larsed.nuPDG->size(); ++i)

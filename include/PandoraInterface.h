@@ -234,10 +234,39 @@ LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Pa
  */
 LArVoxelList MergeSameVoxels(const LArVoxelList &voxelList);
 
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Combine energies for voxel projections with the same (wire,drift) position
+ *
+ *  @param  hits The unmerged list (vector) of voxel projections
+ *
+ *  @return vector of merged LArVoxelProjections
+ */
 LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits);
 
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Return the fraction of the MC particle energy in this voxel
+ *
+ *  @param  mcEnergyMap map of true particle to the energy
+ *  @param  voxelE energy deposited in the voxel
+ *  @param  trackID true id of the track that deposited the energy
+ *
+ *  @return fraction of true particle energy in the voxel as a float
+ */
 float GetMCEnergyFraction(const MCParticleEnergyMap &mcEnergyMap, const float voxelE, const int trackID);
 
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  construct a generic set of calohit parameters
+ *
+ *  @param  voxelWidth size of the voxelisation used
+ *
+ *  @return LArCaloHitParameters object
+ */
 lar_content::LArCaloHitParameters MakeDefaultCaloHitParams(float voxelWidth);
 
 //------------------------------------------------------------------------------------------------------------------------------------------

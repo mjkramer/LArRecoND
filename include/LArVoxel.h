@@ -1,7 +1,7 @@
 /**
  *  @file   LArReco/include/LArRay.h
  *
- *  @brief  Header file for LArVoxel
+ *  @brief  Header file for LArVoxel and LArVoxelProjection
  *
  *  $Log: $
  */
@@ -78,6 +78,16 @@ inline void LArVoxel::SetTrackID(const int trackid)
 class LArVoxelProjection
 {
 public:
+
+    /**
+     *  @brief  Constructor
+     *
+     *  @param  energy the energy deposited in the voxel before projection
+     *  @param  w the coordinate in the wire direction after projection
+     *  @param  x the drift coordinate
+     *  @param  view the readout view - typically U, V, or W
+     *  @param  trackid id of the true particle that produced the energy in the voxel before projection
+     */
     LArVoxelProjection(const float energy, const float w, const float x, const pandora::HitType &view, const int trackid);
 
     float m_energy;
