@@ -213,6 +213,18 @@ std::string GetNuanceReaction(const int ccnc, const int mode);
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 /**
+ *  @brief  Create the LArGrid for making voxels using the geometry
+ *
+ *  @param  pPrimaryPandora address of the primary pandora instance
+ *  @param  parameters the application parameters
+ *
+ *  @return the LArGrid object
+ */
+LArGrid MakeVoxelisationGrid(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
  *  @brief  Make voxels from a given Geant4 energy deposition step
  *
  *  @param  hitInfo Information about the hit

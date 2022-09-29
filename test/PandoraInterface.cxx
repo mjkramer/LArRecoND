@@ -288,19 +288,7 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
     // Factory for creating LArCaloHits
     lar_content::LArCaloHitFactory m_larCaloHitFactory;
 
-    // Detector volume for voxelising the hits
-    const GeometryManager *geom = pPrimaryPandora->GetGeometry();
-    const LArTPC &tpc = geom->GetLArTPC();
-
-    const float botX = tpc.GetCenterX() - 0.5 * tpc.GetWidthX();
-    const float botY = tpc.GetCenterY() - 0.5 * tpc.GetWidthY();
-    const float botZ = tpc.GetCenterZ() - 0.5 * tpc.GetWidthZ();
-    const float topX = botX + tpc.GetWidthX();
-    const float topY = botY + tpc.GetWidthY();
-    const float topZ = botZ + tpc.GetWidthZ();
-    const float voxelWidth(parameters.m_voxelWidth);
-    const LArGrid grid(pandora::CartesianVector(botX, botY, botZ), pandora::CartesianVector(topX, topY, topZ),
-        pandora::CartesianVector(voxelWidth, voxelWidth, voxelWidth));
+    const LArGrid grid = MakeVoxelisationGrid(pPrimaryPandora,parameters);
 
     std::cout << "Total grid volume: bot = " << grid.m_bottom << "\n top = " << grid.m_top << std::endl;
     std::cout << "Making voxels with size " << grid.m_binWidths << std::endl;
@@ -406,19 +394,7 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
 
     const LArSED larsed(ndsim);
 
-    // Detector volume for voxelising the hits
-    const GeometryManager *geom = pPrimaryPandora->GetGeometry();
-    const LArTPC &tpc = geom->GetLArTPC();
-
-    const float botX = tpc.GetCenterX() - 0.5 * tpc.GetWidthX();
-    const float botY = tpc.GetCenterY() - 0.5 * tpc.GetWidthY();
-    const float botZ = tpc.GetCenterZ() - 0.5 * tpc.GetWidthZ();
-    const float topX = botX + tpc.GetWidthX();
-    const float topY = botY + tpc.GetWidthY();
-    const float topZ = botZ + tpc.GetWidthZ();
-    const float voxelWidth(parameters.m_voxelWidth);
-    const LArGrid grid(pandora::CartesianVector(botX, botY, botZ), pandora::CartesianVector(topX, topY, topZ),
-        pandora::CartesianVector(voxelWidth, voxelWidth, voxelWidth));
+    const LArGrid grid = MakeVoxelisationGrid(pPrimaryPandora,parameters);
 
     std::cout << "Total grid volume: bot = " << grid.m_bottom << "\n top = " << grid.m_top << std::endl;
     std::cout << "Making voxels with size " << grid.m_binWidths << std::endl;
@@ -481,6 +457,7 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
 
         // Merge voxels with the same IDs
         const LArVoxelList mergedVoxels = MergeSameVoxels(voxelList);
+        voxelList.clear();
 
         std::cout << "Produced " << mergedVoxels.size() << " merged voxels from " << voxelList.size() << " voxels." << std::endl;
 
@@ -901,6 +878,26 @@ std::string GetNuanceReaction(const int ccnc, const int mode)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+LArGrid MakeVoxelisationGrid(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters)
+{
+    // Detector volume for voxelising the hits
+    const GeometryManager *geom = pPrimaryPandora->GetGeometry();
+    const LArTPC &tpc = geom->GetLArTPC();
+
+    const float botX = tpc.GetCenterX() - 0.5 * tpc.GetWidthX();
+    const float botY = tpc.GetCenterY() - 0.5 * tpc.GetWidthY();
+    const float botZ = tpc.GetCenterZ() - 0.5 * tpc.GetWidthZ();
+    const float topX = botX + tpc.GetWidthX();
+    const float topY = botY + tpc.GetWidthY();
+    const float topZ = botZ + tpc.GetWidthZ();
+    const float voxelWidth(parameters.m_voxelWidth);
+
+    return LArGrid(pandora::CartesianVector(botX, botY, botZ), pandora::CartesianVector(topX, topY, topZ),
+        pandora::CartesianVector(voxelWidth, voxelWidth, voxelWidth));
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
 LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters)
 {
     // Code based on https://github.com/chenel/larcv2/tree/edepsim-formattruth/larcv/app/Supera/Voxelize.cxx
@@ -1060,7 +1057,7 @@ LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Pa
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-LArVoxelList MergeSameVoxels(const std::vector<LArVoxel> &voxelList)
+LArVoxelList MergeSameVoxels(const LArVoxelList &voxelList)
 {
     std::cout << "Merging voxels with the same IDs" << std::endl;
     LArVoxelList mergedVoxels;
