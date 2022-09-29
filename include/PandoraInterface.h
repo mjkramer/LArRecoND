@@ -248,6 +248,20 @@ LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits);
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 /**
+ *  @brief  Create the pandora calohits from voxels
+ *
+ *  @param  voxels the voxels to use to create the hits
+ *  @param  mcEnergyMap map of mc particle to its energy
+ *  @param  pPrimaryPandora address of the primary pandora instance
+ *  @param  parameters the application parameters
+ *  @param  hitCounter reference to keep track of the number of hits
+ */
+void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMap &mcEnergyMap, 
+                            const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, int &hitCounter);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
  *  @brief  Return the fraction of the MC particle energy in this voxel
  *
  *  @param  mcEnergyMap map of true particle to the energy
