@@ -1144,8 +1144,8 @@ LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits)
             continue;
 
         LArVoxelProjection voxProj1{hits.at(vp1)};
-        float bestEnergy{voxProj1.m_energy};
-        int bestTrackID{voxProj1.m_trackID};
+        std::map<int,float> trackIDToEnergy;
+        trackIDToEnergy[voxProj1.m_trackID] = voxProj1.m_energy;
         for (unsigned int vp2 = vp1 + 1; vp2 < hits.size(); ++vp2)
         {
             if (areUsed.at(vp2))
@@ -1158,16 +1158,31 @@ LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits)
 
             // Add the energy, but keep track of the highest energy contributor
             voxProj1.m_energy += voxProj2.m_energy;
-            if (voxProj2.m_energy > bestEnergy)
-            {
-                bestEnergy = voxProj2.m_energy;
-                bestTrackID = voxProj2.m_trackID;
-            }
+            if (trackIDToEnergy.count(voxProj2.m_trackID) != 0)
+                trackIDToEnergy[voxProj2.m_trackID] += voxProj2.m_energy;
+            else
+                trackIDToEnergy[voxProj2.m_trackID] = voxProj2.m_energy;
+            
             areUsed.at(vp2) = true;
         }
         // Add the hit to the output
         areUsed.at(vp1) = true;
-        voxProj1.m_trackID = bestTrackID;
+
+        // Update the track ID if necessary
+        if (trackIDToEnergy.size() > 1)
+        {
+            float highestEnergy{0.f};
+            int bestTrackID{-1};
+            for (auto const &pair : trackIDToEnergy)
+            {
+                if (pair.second > highestEnergy)
+                {
+                    highestEnergy = pair.second;
+                    bestTrackID = pair.first;
+                }
+            }
+            voxProj1.m_trackID = bestTrackID;
+        }
         outputHits.emplace_back(voxProj1);
     }
 
