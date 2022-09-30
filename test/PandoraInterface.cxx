@@ -1255,13 +1255,13 @@ void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMa
             const LArVoxel &voxel = voxels.at(v);
             const pandora::CartesianVector voxelPos = voxel.m_voxelPosVect;
             const float uPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoU(voxelPos.GetY(),voxelPos.GetZ()));
-            voxelProjectionsU.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,uPos,voxelPos.GetX(),pandora::TPC_VIEW_U,voxel.m_trackID));
+            voxelProjectionsU.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,uPos,voxelPos.GetX(),pandora::TPC_VIEW_U,voxel.m_trackID,voxel.m_tpcID));
     
             const float vPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoV(voxelPos.GetY(),voxelPos.GetZ()));
-            voxelProjectionsV.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,vPos,voxelPos.GetX(),pandora::TPC_VIEW_V,voxel.m_trackID));
+            voxelProjectionsV.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,vPos,voxelPos.GetX(),pandora::TPC_VIEW_V,voxel.m_trackID,voxel.m_tpcID));
     
             const float wPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoW(voxelPos.GetY(),voxelPos.GetZ()));
-            voxelProjectionsW.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,wPos,voxelPos.GetX(),pandora::TPC_VIEW_W,voxel.m_trackID));
+            voxelProjectionsW.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,wPos,voxelPos.GetX(),pandora::TPC_VIEW_W,voxel.m_trackID,voxel.m_tpcID));
         }
     
         std::vector<LArVoxelProjectionList> viewProjections;
