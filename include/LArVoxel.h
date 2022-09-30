@@ -28,6 +28,17 @@ public:
     LArVoxel(const long voxelID, const float energyInVoxel, const pandora::CartesianVector &voxelPosVect, const int trackID);
 
     /**
+     *  @brief  Constructor
+     *
+     *  @param  voxelID Total bin number for the voxel (long integer, since it can be > 2^31)
+     *  @param  energyInVoxel The total deposited energy in the voxel (GeV)
+     *  @param  voxelPosVect Voxel position, set as the first corner of the voxel bin
+     *  @param  trackID The Geant4 ID of the (first) contributing track to this voxel
+     *  @param  tpcID ID of the tpc containing this voxel
+     */
+    LArVoxel(const long voxelID, const float energyInVoxel, const pandora::CartesianVector &voxelPosVect, const int trackID, const unsigned int tpcID);
+
+    /**
      *  @brief  Set voxel energy (GeV)
      *
      *  @param  E voxel energy
@@ -45,6 +56,7 @@ public:
     float m_energyInVoxel;                   ///< The energy in the voxel (GeV)
     pandora::CartesianVector m_voxelPosVect; ///< Position vector (x,y,z) of the first voxel corner
     int m_trackID;                           ///< The Geant4 ID of the (first) contributing track to this voxel
+    unsigned int m_tpcID;
 };
 
 typedef std::vector<LArVoxel> LArVoxelList;
@@ -55,7 +67,20 @@ inline LArVoxel::LArVoxel(const long voxelID, const float energyInVoxel, const p
     m_voxelID(voxelID),
     m_energyInVoxel(energyInVoxel),
     m_voxelPosVect(voxelPosVect),
-    m_trackID(trackID)
+    m_trackID(trackID),
+    m_tpcID(0)
+{
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline LArVoxel::LArVoxel(const long voxelID, const float energyInVoxel, const pandora::CartesianVector &voxelPosVect,
+                          const int trackID, const unsigned int tpcID) :
+    m_voxelID(voxelID),
+    m_energyInVoxel(energyInVoxel),
+    m_voxelPosVect(voxelPosVect),
+    m_trackID(trackID),
+    m_tpcID(tpcID)
 {
 }
 
@@ -90,11 +115,24 @@ public:
      */
     LArVoxelProjection(const float energy, const float w, const float x, const pandora::HitType &view, const int trackid);
 
+    /**
+     *  @brief  Constructor
+     *
+     *  @param  energy the energy deposited in the voxel before projection
+     *  @param  w the coordinate in the wire direction after projection
+     *  @param  x the drift coordinate
+     *  @param  view the readout view - typically U, V, or W
+     *  @param  trackid id of the true particle that produced the energy in the voxel before projection
+     *  @param  tpcid id of the TPC containing the voxel
+     */
+    LArVoxelProjection(const float energy, const float w, const float x, const pandora::HitType &view, const int trackid, const unsigned int tpcid);
+
     float m_energy;
     float m_wire;
     float m_drift;
     pandora::HitType m_view;
     int m_trackID;
+    unsigned int m_tpcID;
 };
 
 typedef std::vector<LArVoxelProjection> LArVoxelProjectionList;
@@ -107,7 +145,21 @@ inline LArVoxelProjection::LArVoxelProjection(const float energy, const float w,
     m_wire(w),
     m_drift(x),
     m_view(view),
-    m_trackID(trackid)
+    m_trackID(trackid),
+    m_tpcID(0)
+{   
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline LArVoxelProjection::LArVoxelProjection(const float energy, const float w, const float x, 
+    const pandora::HitType &view, const int trackid, const unsigned int tpcid) :
+    m_energy(energy),
+    m_wire(w),
+    m_drift(x),
+    m_view(view),
+    m_trackID(trackid),
+    m_tpcID(tpcid)
 {   
 }
 

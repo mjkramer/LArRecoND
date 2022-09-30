@@ -33,6 +33,7 @@
 #include "larpandoracontent/LArPlugins/LArRotationalTransformationPlugin.h"
 
 #include "LArRay.h"
+#include "LArNDLArGeomSimple.h"
 #include "PandoraInterface.h"
 
 #ifdef MONITORING
@@ -253,7 +254,6 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
 {
     if (parameters.m_dataFormat == Parameters::LArNDFormat::SED)
     {
-
         ProcessSEDEvents(parameters, pPrimaryPandora);
     }
     else
@@ -281,6 +281,8 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
         fileSource->Close();
         return;
     }
+
+    LArNDLArGeomSimple geom;
 
     TG4Event *pEDepSimEvent(nullptr);
     pEDepSimTree->SetBranchAddress("Event", &pEDepSimEvent);
@@ -340,7 +342,8 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
             for (TG4HitSegment &g4Hit : detector->second)
             {
                 const LArHitInfo hitInfo(g4Hit, parameters.m_lengthScale, parameters.m_energyScale);
-                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters);
+                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters,geom);
+
 
                 for (const LArVoxel &voxel : currentVoxelList)
                     voxelList.emplace_back(voxel);
@@ -394,6 +397,7 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
 
     const LArSED larsed(ndsim);
 
+    LArNDLArGeomSimple geom;
     const LArGrid grid = MakeVoxelisationGrid(pPrimaryPandora,parameters);
 
     std::cout << "Total grid volume: bot = " << grid.m_bottom << "\n top = " << grid.m_top << std::endl;
@@ -446,7 +450,7 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
                 const pandora::CartesianVector end(endx, endy, endz);
 
                 const LArHitInfo hitInfo(start, end, energy, g4id, parameters.m_lengthScale, parameters.m_energyScale);
-                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters);
+                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters,geom);
 
                 for (const LArVoxel &voxel : currentVoxelList)
                     voxelList.emplace_back(voxel);
@@ -457,9 +461,9 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
 
         // Merge voxels with the same IDs
         const LArVoxelList mergedVoxels = MergeSameVoxels(voxelList);
-        voxelList.clear();
 
         std::cout << "Produced " << mergedVoxels.size() << " merged voxels from " << voxelList.size() << " voxels." << std::endl;
+        voxelList.clear();
 
         // Stop processing the event if we have too many voxels: reco takes too long
         if (parameters.m_maxMergedVoxels > 0 && mergedVoxels.size() > parameters.m_maxMergedVoxels)
@@ -898,7 +902,7 @@ LArGrid MakeVoxelisationGrid(const pandora::Pandora *const pPrimaryPandora, cons
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters)
+LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters, const LArNDLArGeomSimple &geom)
 {
     // Code based on https://github.com/chenel/larcv2/tree/edepsim-formattruth/larcv/app/Supera/Voxelize.cxx
     // which is made available under the MIT license (which is fully compatible with Pandora's GPLv3 license).
@@ -1042,9 +1046,16 @@ LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Pa
         // Here, hitLength is guaranteed to be greater than zero
         const float voxelEnergy(g4HitEnergy * dL / hitLength);
 
-        // Store voxel object in vector
-        const LArVoxel voxel(voxelID, voxelEnergy, voxBot, trackID);
-        currentVoxelList.emplace_back(voxel);
+        // Store voxel object in vector if it is in a tpc. Dummy value of 999
+        // if the position is not in a TPC (could be in a cathode or module gap)
+        const unsigned int tpcID(geom.GetTPCNumber(voxelPoint));
+        if (tpcID != 999)
+        {
+            const LArVoxel voxel(voxelID, voxelEnergy, voxBot, trackID, tpcID);
+            currentVoxelList.emplace_back(voxel);
+        }
+        else
+            std::cout << "Hit not in TPC: " << voxelPoint << std::endl;
 
         // Update ray starting position using intersection path difference
         const pandora::CartesianVector newStart = ray.GetPoint(dL);
@@ -1152,7 +1163,6 @@ LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits)
                 continue;
 
             const LArVoxelProjection &voxProj2 = hits.at(vp2);
-
             if ((voxProj1.m_wire != voxProj2.m_wire) || (voxProj1.m_drift != voxProj2.m_drift)) 
                 continue;
 
@@ -1195,6 +1205,7 @@ LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits)
 void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMap &mcEnergyMap,
                             const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, int &hitCounter)
 {
+
     // Factory for creating LArCaloHits
     lar_content::LArCaloHitFactory m_larCaloHitFactory;
     const float voxelWidth(parameters.m_voxelWidth);

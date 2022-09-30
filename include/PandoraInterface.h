@@ -15,6 +15,7 @@
 #include "LArHitInfo.h"
 #include "LArSED.h"
 #include "LArVoxel.h"
+#include "LArNDLArGeomSimple.h"
 
 namespace pandora
 {
@@ -230,10 +231,11 @@ LArGrid MakeVoxelisationGrid(const pandora::Pandora *const pPrimaryPandora, cons
  *  @param  hitInfo Information about the hit
  *  @param  grid Voxelisation grid
  *  @param  parameters The application parameters
+ *  @param  simple geometry information
  *
  *  @return vector of LArVoxels
  */
-LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters);
+LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters, const LArNDLArGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
