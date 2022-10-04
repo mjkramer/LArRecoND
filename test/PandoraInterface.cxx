@@ -137,22 +137,17 @@ void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryP
         // Navigate to each node and use them to build the pandora geometry
         for (unsigned int n = 0; n < nodePaths.size(); ++n)
         {
-            TGeoNode *pTopNode = pSimGeom->GetCurrentNode();
-            TGeoNode *pTargetNode{nullptr};
+            const TGeoNode *pTopNode = pSimGeom->GetCurrentNode();
+            // We have to multiply together matrices at each depth to convert local coordinates to the world volume
             std::unique_ptr<TGeoHMatrix> pVolMatrix = std::make_unique<TGeoHMatrix>(*pTopNode->GetMatrix());
-//            std::cout << "New path: " << pSimGeom->GetCurrentNode()->GetName() << "/";
             for (unsigned int d = 0; d < nodePaths.at(n).size(); ++d)
             {
                 pSimGeom->CdDown(nodePaths.at(n).at(d));
-                TGeoNode *pNode = pSimGeom->GetCurrentNode();
+                const TGeoNode *pNode = pSimGeom->GetCurrentNode();
                 std::unique_ptr<TGeoHMatrix> pMatrix = std::make_unique<TGeoHMatrix>(*pNode->GetMatrix());
                 pVolMatrix->Multiply(pMatrix.get());
-//                std::cout << pSimGeom->GetCurrentNode()->GetName() << "/";
             }
-//            std::cout << std::endl;
-            pTargetNode = pSimGeom->GetCurrentNode();
-//            const double *pVolTrans = pVolMatrix->GetTranslation();
-//            std::cout << "Translation = " << pVolTrans[0] << ", " << pVolTrans[1] << ", " << pVolTrans[2] << std::endl;
+            const TGeoNode *pTargetNode = pSimGeom->GetCurrentNode();
     
             MakePandoraTPC(pPrimaryPandora,parameters,geom,pVolMatrix,pTargetNode,n);
             std::cout << "Made TPC " << n << std::endl;
