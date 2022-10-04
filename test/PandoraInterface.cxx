@@ -125,42 +125,42 @@ void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryP
         return;
     }
 
-    if (parameters.m_useModularGeometry)
-    {
-        // Go through the geometry and find the paths to the nodes we are interested in
-        std::vector<std::vector<unsigned int>> nodePaths; // Store the daughter indices in the path to the node
-        std::vector<unsigned int> currentPath;
-        const std::string nameToFind{parameters.m_sensitiveDetName};
-        RecursiveGeometrySearch(pSimGeom,nameToFind,nodePaths,currentPath);
-        std::cout << "Found " << nodePaths.size() << " matches for volumes containing the name " << nameToFind << std::endl;
+//    if (parameters.m_useModularGeometry)
+//    {
+      // Go through the geometry and find the paths to the nodes we are interested in
+      std::vector<std::vector<unsigned int>> nodePaths; // Store the daughter indices in the path to the node
+      std::vector<unsigned int> currentPath;
+      const std::string nameToFind = parameters.m_useModularGeometry ? parameters.m_sensitiveDetName : parameters.m_geometryVolName;
+      RecursiveGeometrySearch(pSimGeom,nameToFind,nodePaths,currentPath);
+      std::cout << "Found " << nodePaths.size() << " matches for volumes containing the name " << nameToFind << std::endl;
 
-        // Navigate to each node and use them to build the pandora geometry
-        for (unsigned int n = 0; n < nodePaths.size(); ++n)
-        {
-            const TGeoNode *pTopNode = pSimGeom->GetCurrentNode();
-            // We have to multiply together matrices at each depth to convert local coordinates to the world volume
-            std::unique_ptr<TGeoHMatrix> pVolMatrix = std::make_unique<TGeoHMatrix>(*pTopNode->GetMatrix());
-            for (unsigned int d = 0; d < nodePaths.at(n).size(); ++d)
-            {
-                pSimGeom->CdDown(nodePaths.at(n).at(d));
-                const TGeoNode *pNode = pSimGeom->GetCurrentNode();
-                std::unique_ptr<TGeoHMatrix> pMatrix = std::make_unique<TGeoHMatrix>(*pNode->GetMatrix());
-                pVolMatrix->Multiply(pMatrix.get());
-            }
-            const TGeoNode *pTargetNode = pSimGeom->GetCurrentNode();
+      // Navigate to each node and use them to build the pandora geometry
+      for (unsigned int n = 0; n < nodePaths.size(); ++n)
+      {
+          const TGeoNode *pTopNode = pSimGeom->GetCurrentNode();
+          // We have to multiply together matrices at each depth to convert local coordinates to the world volume
+          std::unique_ptr<TGeoHMatrix> pVolMatrix = std::make_unique<TGeoHMatrix>(*pTopNode->GetMatrix());
+          for (unsigned int d = 0; d < nodePaths.at(n).size(); ++d)
+          {
+              pSimGeom->CdDown(nodePaths.at(n).at(d));
+              const TGeoNode *pNode = pSimGeom->GetCurrentNode();
+              std::unique_ptr<TGeoHMatrix> pMatrix = std::make_unique<TGeoHMatrix>(*pNode->GetMatrix());
+              pVolMatrix->Multiply(pMatrix.get());
+          }
+          const TGeoNode *pTargetNode = pSimGeom->GetCurrentNode();
+  
+          MakePandoraTPC(pPrimaryPandora,parameters,geom,pVolMatrix,pTargetNode,n);
+
+          for (const unsigned int &daughter : nodePaths.at(n))
+          {
+              (void)daughter;
+              pSimGeom->CdUp();
+          }
     
-            MakePandoraTPC(pPrimaryPandora,parameters,geom,pVolMatrix,pTargetNode,n);
-//            std::cout << "Made TPC " << n << std::endl;
-            for (const unsigned int &daughter : nodePaths.at(n))
-            {
-                (void)daughter;
-                pSimGeom->CdUp();
-            }
-    
-        }
-        std::cout << "Created " << nodePaths.size() << " TPCs" << std::endl;
-    }
-    else
+      }
+      std::cout << "Created " << nodePaths.size() << " TPCs" << std::endl;
+//    }
+/*    else
     {
         // Start by looking at the top level volume and move down to the one we need
         std::string name;
@@ -225,7 +225,7 @@ void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryP
 
         MakePandoraTPC(pPrimaryPandora,parameters,geom,pVolMatrix,pCurrentNode,0);
 
-    }
+    }*/
     fileSource->Close();
 }
 
