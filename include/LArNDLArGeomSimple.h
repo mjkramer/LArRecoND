@@ -17,20 +17,34 @@ class LArNDLArTPCSimple
 {
 public:
 
+    /**
+     *  @brief  default constructor
+     */  
     LArNDLArTPCSimple();
 
-    LArNDLArTPCSimple(const float x_min, const float x_max, const float y_min, const float y_max,
-                 const float z_min, const float z_max, const unsigned int tpcID);
+    /**
+     *  @brief  constructor with coordinate limits and id
+     *
+     *  @param  x_min minimum x value of the TPC box
+     *  @param  x_max maximum x value of the TPC box
+     *  @param  y_min minimum y value of the TPC box
+     *  @param  y_max maximum y value of the TPC box
+     *  @param  z_min minimum z value of the TPC box
+     *  @param  z_max maximum z value of the TPC box
+     *  @param  tpcID unique id of the tpc
+     */  
+    LArNDLArTPCSimple(const double x_min, const double x_max, const double y_min, const double y_max,
+                 const double z_min, const double z_max, const unsigned int tpcID);
 
     bool IsInTPC(const pandora::CartesianVector &pos) const;
 
-    float m_x_min;
-    float m_x_max;
-    float m_y_min;
-    float m_y_max;
-    float m_z_min;
-    float m_z_max;
-    unsigned int m_TPC_ID;
+    double m_x_min;         ///< minimum x value of the TPC cubioid
+    double m_x_max;         ///< maximum x value of the TPC cubioid
+    double m_y_min;         ///< minimum y value of the TPC cubioid
+    double m_y_max;         ///< maximum y value of the TPC cubioid
+    double m_z_min;         ///< minimum z value of the TPC cubioid
+    double m_z_max;         ///< maximum z value of the TPC cubioid
+    unsigned int m_TPC_ID;  ///< unique id of the TPC
 
 };
 
@@ -46,8 +60,8 @@ inline LArNDLArTPCSimple::LArNDLArTPCSimple() :
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline LArNDLArTPCSimple::LArNDLArTPCSimple(const float x_min, const float x_max, const float y_min, const float y_max,
-                                  const float z_min, const float z_max, const unsigned int tpcID) :
+inline LArNDLArTPCSimple::LArNDLArTPCSimple(const double x_min, const double x_max, const double y_min, const double y_max,
+                                  const double z_min, const double z_max, const unsigned int tpcID) :
     m_x_min{x_min}, m_x_max{x_max},
     m_y_min{y_min}, m_y_max{y_max},
     m_z_min{z_min}, m_z_max{z_max},
@@ -59,11 +73,11 @@ inline LArNDLArTPCSimple::LArNDLArTPCSimple(const float x_min, const float x_max
 
 inline bool LArNDLArTPCSimple::IsInTPC(const pandora::CartesianVector &pos) const
 {
-    if (pos.GetX() < m_x_min || pos.GetX() > m_x_max)
+    if (pos.GetX() <= m_x_min || pos.GetX() >= m_x_max)
         return false;
-    if (pos.GetY() < m_y_min || pos.GetY() > m_y_max)
+    if (pos.GetY() <= m_y_min || pos.GetY() >= m_y_max)
         return false;
-    if (pos.GetZ() < m_z_min || pos.GetZ() > m_z_max)
+    if (pos.GetZ() <= m_z_min || pos.GetZ() >= m_z_max)
         return false;
 
     return true;
@@ -96,13 +110,36 @@ public:
      */
     unsigned int GetModuleNumber(const pandora::CartesianVector &position) const;
 
-    // I'm going to label each TPC from 0 -> 13 for the first row (low z)
-    // and then 15 -> 26 for the second row etc
-    std::map<unsigned int,LArNDLArTPCSimple> m_TPCs;
+    /**
+     *  @brief  Add a TPC to the geometry
+     *
+     *  @param  min_x minimum x position of the TPC
+     *  @param  max_x maximum x position of the TPC
+     *  @param  min_y minimum y position of the TPC
+     *  @param  max_y maximum y position of the TPC
+     *  @param  min_z minimum z position of the TPC
+     *  @param  max_z maximum z position of the TPC
+     *  @param  tpcID tpc id as unsigned int
+     */
+    void AddTPC(const double min_x, const double max_x, const double min_y, const double max_y,
+                const double min_z, const double max_z, const unsigned int tpcID);
+
+    /**
+     *  @brief  Get the box surrounding all TPCs
+     *
+     *  @param  min_x minimum x position of the TPCs
+     *  @param  max_x maximum x position of the TPCs
+     *  @param  min_y minimum y position of the TPCs
+     *  @param  max_y maximum y position of the TPCs
+     *  @param  min_z minimum z position of the TPCs
+     *  @param  max_z maximum z position of the TPCs
+     */
+    void GetSurroundingBox(double &min_x, double &max_x, double &min_y, double &max_y, double &min_z, double &max_z) const;
+
+    std::map<unsigned int,LArNDLArTPCSimple> m_TPCs; ///< map of the TPCs keyed on their unique id
 
 private:
 
-    void PopulateBoundaries();
 };
 
 
@@ -110,7 +147,6 @@ private:
 
 LArNDLArGeomSimple::LArNDLArGeomSimple()
 {
-    this->PopulateBoundaries();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -139,49 +175,34 @@ inline unsigned int LArNDLArGeomSimple::GetModuleNumber(const pandora::Cartesian
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline void LArNDLArGeomSimple::PopulateBoundaries()
+inline void LArNDLArGeomSimple::AddTPC(const double min_x, const double max_x, const double min_y, const double max_y,
+                   const double min_z, const double max_z, const unsigned int tpcID)
 {
-    // These numbers are roughly accurate to 0.1mm and obtained from looking at hit positions
-    const float m_x_min = -347.85; 
-//    const float m_x_max = 349.7;
-    const float m_y_min = -216.7; 
-    const float m_y_max = 83.0;
-    const float m_z_min = 417.92;
-//    const float m_z_max = 913.6; 
+    if (m_TPCs.count(tpcID))
+        std::cout << "LArNDLArGeomSimple: trying to add another TPC with tpc id " << tpcID << "! Doing nothing. " << std::endl;
+    else
+        m_TPCs[tpcID] = LArNDLArTPCSimple(min_x, max_x ,min_y, max_y, min_z, max_z, tpcID);
+}
 
-    // The repeating pattern size (same in x and z)
-    const float repeat_size = 100.0;
+//------------------------------------------------------------------------------------------------------------------------------------------
 
-    // Gap sizes
-    const float x_cathode_gap = 0.62;
-    const float x_tpc_width = 47.54;
-    const float z_module_gap = 4.33;
+inline void LArNDLArGeomSimple::GetSurroundingBox(double &min_x, double &max_x, double &min_y, double &max_y, double &min_z, double &max_z) const
+{
+    min_x = std::numeric_limits<double>::max();
+    min_y = std::numeric_limits<double>::max();
+    min_z = std::numeric_limits<double>::max();
+    max_x = std::numeric_limits<double>::min();
+    max_y = std::numeric_limits<double>::min();
+    max_z = std::numeric_limits<double>::min();
 
-    // These are hardcoded numbers for now as we don't have anything better available
-    const unsigned int m_n_modules_x = 7;
-    const unsigned int m_n_modules_z = 5;
-
-    for (unsigned int mx = 0; mx < m_n_modules_x; ++mx)
+    for (auto const &tpc : m_TPCs)
     {
-        for (unsigned int mz = 0; mz < m_n_modules_z; ++mz)
-        {
-            // Each module contains two TPCs: left (low x) and right (high x)
-            float x_min{m_x_min + mx*repeat_size};
-            float x_max{x_min + x_tpc_width};
-            const float z_min{m_z_min + mz*repeat_size};
-            const float z_max{z_min + repeat_size - z_module_gap};
-            const unsigned int moduleID = mx + (mz * m_n_modules_x);
-            LArNDLArTPCSimple leftTPC(x_min,x_max,m_y_min,m_y_max,z_min,z_max,2*moduleID);
-
-            // Now for the right TPC
-            x_min = x_max + x_cathode_gap;
-            x_max = x_min + x_tpc_width;
-            LArNDLArTPCSimple rightTPC(x_min,x_max,m_y_min,m_y_max,z_min,z_max,2*moduleID+1);
-
-            // Store the TPCs in the map, keyed on their tpcID
-            m_TPCs[leftTPC.m_TPC_ID] = leftTPC;
-            m_TPCs[rightTPC.m_TPC_ID] = rightTPC;            
-        }
+        min_x = tpc.second.m_x_min < min_x ? tpc.second.m_x_min : min_x; 
+        min_y = tpc.second.m_y_min < min_y ? tpc.second.m_y_min : min_y; 
+        min_z = tpc.second.m_z_min < min_z ? tpc.second.m_z_min : min_z; 
+        max_x = tpc.second.m_x_max > max_x ? tpc.second.m_x_max : max_x; 
+        max_y = tpc.second.m_y_max > max_y ? tpc.second.m_y_max : max_y; 
+        max_z = tpc.second.m_z_max > max_z ? tpc.second.m_z_max : max_z; 
     }
 }
 

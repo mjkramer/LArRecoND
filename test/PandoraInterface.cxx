@@ -76,15 +76,16 @@ int main(int argc, char *argv[])
 
         MultiPandoraApi::AddPrimaryPandoraInstance(pPrimaryPandora);
 
-        CreateGeometry(parameters, pPrimaryPandora);
-        ProcessExternalParameters(parameters, pPrimaryPandora);
 
+        LArNDLArGeomSimple simpleGeom;
+        CreateGeometry(parameters, pPrimaryPandora, simpleGeom);
+        ProcessExternalParameters(parameters, pPrimaryPandora);
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::SetPseudoLayerPlugin(*pPrimaryPandora, new lar_content::LArPseudoLayerPlugin));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=,
             PandoraApi::SetLArTransformationPlugin(*pPrimaryPandora, new lar_content::LArRotationalTransformationPlugin));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ReadSettings(*pPrimaryPandora, parameters.m_settingsFile));
 
-        ProcessEvents(parameters, pPrimaryPandora);
+        ProcessEvents(parameters, pPrimaryPandora, simpleGeom);
     }
     catch (const StatusCodeException &statusCodeException)
     {
@@ -106,7 +107,7 @@ int main(int argc, char *argv[])
 namespace lar_nd_reco
 {
 
-void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryPandora)
+void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryPandora, LArNDLArGeomSimple &geom)
 {
     // Get the geometry info from the appropriate ROOT file
     TFile *fileSource = TFile::Open(parameters.m_geomFileName.c_str(), "READ");
@@ -124,147 +125,227 @@ void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryP
         return;
     }
 
-    // Start by looking at the top level volume and move down to the one we need
-    std::string name;
-    const std::string neededNode(parameters.m_geometryVolName);
-    TGeoNode *pCurrentNode = pSimGeom->GetCurrentNode();
-    bool foundNode(false);
-
-    // Initialise volume matrix using the master (top) volume.
-    // This is updated as we go down the volume hierarchy
-    std::unique_ptr<TGeoHMatrix> pVolMatrix = std::make_unique<TGeoHMatrix>(*pCurrentNode->GetMatrix());
-
-    // Maximum number of nodes to search through, same as default TGeoManager counting node limit
-    const int maxNodes(10000);
-    int iNode(0);
-    while (foundNode == false && iNode < maxNodes)
+    if (parameters.m_useModularGeometry)
     {
-        pCurrentNode = pSimGeom->GetCurrentNode();
-        iNode++;
-        name = pCurrentNode->GetName();
-        std::unique_ptr<TGeoHMatrix> pCurrentMatrix = std::make_unique<TGeoHMatrix>(*pCurrentNode->GetMatrix());
-        pVolMatrix->Multiply(pCurrentMatrix.get());
+        // Go through the geometry and find the paths to the nodes we are interested in
+        std::vector<std::vector<unsigned int>> nodePaths; // Store the daughter indices in the path to the node
+        std::vector<unsigned int> currentPath;
+        const std::string nameToFind{parameters.m_sensitiveDetName};
+        RecursiveGeometrySearch(pSimGeom,nameToFind,nodePaths,currentPath);
+        std::cout << "Found " << nodePaths.size() << " matches for volumes containing the name " << nameToFind << std::endl;
 
-        int i1 = 0;
-        for (int i = 0; i < pCurrentNode->GetNdaughters(); i++)
+        // Navigate to each node and use them to build the pandora geometry
+        for (unsigned int n = 0; n < nodePaths.size(); ++n)
         {
-
-            pSimGeom->CdDown(i1);
-            TGeoNode *pNode = pSimGeom->GetCurrentNode();
-            name = pNode->GetName();
-            std::unique_ptr<TGeoHMatrix> pMatrix = std::make_unique<TGeoHMatrix>(*pNode->GetMatrix());
-
-            if (name == neededNode)
+            TGeoNode *pTopNode = pSimGeom->GetCurrentNode();
+            TGeoNode *pTargetNode{nullptr};
+            std::unique_ptr<TGeoHMatrix> pVolMatrix = std::make_unique<TGeoHMatrix>(*pTopNode->GetMatrix());
+//            std::cout << "New path: " << pSimGeom->GetCurrentNode()->GetName() << "/";
+            for (unsigned int d = 0; d < nodePaths.at(n).size(); ++d)
             {
-                foundNode = true;
+                pSimGeom->CdDown(nodePaths.at(n).at(d));
+                TGeoNode *pNode = pSimGeom->GetCurrentNode();
+                std::unique_ptr<TGeoHMatrix> pMatrix = std::make_unique<TGeoHMatrix>(*pNode->GetMatrix());
                 pVolMatrix->Multiply(pMatrix.get());
-                break;
+//                std::cout << pSimGeom->GetCurrentNode()->GetName() << "/";
             }
-            else if (i + 1 != pCurrentNode->GetNdaughters())
+//            std::cout << std::endl;
+            pTargetNode = pSimGeom->GetCurrentNode();
+//            const double *pVolTrans = pVolMatrix->GetTranslation();
+//            std::cout << "Translation = " << pVolTrans[0] << ", " << pVolTrans[1] << ", " << pVolTrans[2] << std::endl;
+    
+            MakePandoraTPC(pPrimaryPandora,parameters,geom,pVolMatrix,pTargetNode,n);
+            std::cout << "Made TPC " << n << std::endl;
+            for (const unsigned int &daughter : nodePaths.at(n))
             {
+                (void)daughter;
                 pSimGeom->CdUp();
-                i1++;
             }
+    
+        }
+    }
+    else
+    {
+        // Start by looking at the top level volume and move down to the one we need
+        std::string name;
+        const std::string neededNode(parameters.m_geometryVolName);
+        TGeoNode *pCurrentNode = pSimGeom->GetCurrentNode();
+        bool foundNode(false);
+
+        // Initialise volume matrix using the master (top) volume.
+        // This is updated as we go down the volume hierarchy
+        std::unique_ptr<TGeoHMatrix> pVolMatrix = std::make_unique<TGeoHMatrix>(*pCurrentNode->GetMatrix());
+
+        // Maximum number of nodes to search through, same as default TGeoManager counting node limit
+        const int maxNodes(10000);
+        int iNode(0);
+        while (foundNode == false && iNode < maxNodes)
+        {
+            pCurrentNode = pSimGeom->GetCurrentNode();
+            iNode++;
+            name = pCurrentNode->GetName();
+            std::unique_ptr<TGeoHMatrix> pCurrentMatrix = std::make_unique<TGeoHMatrix>(*pCurrentNode->GetMatrix());
+            pVolMatrix->Multiply(pCurrentMatrix.get());
+
+            int i1 = 0;
+            for (int i = 0; i < pCurrentNode->GetNdaughters(); i++)
+            {
+
+                pSimGeom->CdDown(i1);
+                TGeoNode *pNode = pSimGeom->GetCurrentNode();
+                name = pNode->GetName();
+                std::unique_ptr<TGeoHMatrix> pMatrix = std::make_unique<TGeoHMatrix>(*pNode->GetMatrix());
+
+                if (name == neededNode)
+                {
+                    foundNode = true;
+                    pVolMatrix->Multiply(pMatrix.get());
+                    break;
+                }
+                else if (i + 1 != pCurrentNode->GetNdaughters())
+                {
+                    pSimGeom->CdUp();
+                    i1++;
+                }
+            }
+
+            if (foundNode)
+                break;
         }
 
-        if (foundNode)
-            break;
+        if (!foundNode)
+        {
+            std::cout << "Could not find the required placement geometry volume " << neededNode << std::endl;
+            return;
+        }
+
+        // The current node should now be the placement volume we need to set the geometry parameters
+        pCurrentNode = pSimGeom->GetCurrentNode();
+        name = pCurrentNode->GetName();
+        std::cout << "Current Node: " << name << std::endl;
+        std::cout << "Current N daughters: " << pCurrentNode->GetVolume()->GetNdaughters() << std::endl;
+        std::cout << "Current transformation matrix:" << std::endl;
+        pVolMatrix->Print();
+
+        MakePandoraTPC(pPrimaryPandora,parameters,geom,pVolMatrix,pCurrentNode,0);
+
     }
-
-    if (!foundNode)
-    {
-        std::cout << "Could not find the required placement geometry volume " << neededNode << std::endl;
-        return;
-    }
-
-    // The current node should now be the placement volume we need to set the geometry parameters
-    pCurrentNode = pSimGeom->GetCurrentNode();
-    name = pCurrentNode->GetName();
-    std::cout << "Current Node: " << name << std::endl;
-    std::cout << "Current N daughters: " << pCurrentNode->GetVolume()->GetNdaughters() << std::endl;
-    std::cout << "Current transformation matrix:" << std::endl;
-    pVolMatrix->Print();
-
-    // Get the BBox dimensions from the placement volume, which is assumed to be a cube
-    TGeoVolume *pCurrentVol = pCurrentNode->GetVolume();
-    TGeoShape *pCurrentShape = pCurrentVol->GetShape();
-    pCurrentShape->InspectShape();
-    TGeoBBox *pBox = dynamic_cast<TGeoBBox *>(pCurrentShape);
-
-    // Now can get origin/width data from the BBox
-    const float dx = pBox->GetDX() * parameters.m_lengthScale; // Note these are the half widths
-    const float dy = pBox->GetDY() * parameters.m_lengthScale;
-    const float dz = pBox->GetDZ() * parameters.m_lengthScale;
-    const double *pOrigin = pBox->GetOrigin();
-
-    std::cout << "Origin = (" << pOrigin[0] << ", " << pOrigin[1] << ", " << pOrigin[2] << ")" << std::endl;
-
-    // Translate local origin to global coordinates
-    double level1[3] = {0.0, 0.0, 0.0};
-    pCurrentNode->LocalToMasterVect(pOrigin, level1);
-
-    std::cout << "Level1 = (" << level1[0] << ", " << level1[1] << ", " << level1[2] << ")" << std::endl;
-
-    // Can now create a geometry using the found parameters
-    PandoraApi::Geometry::LArTPC::Parameters geoparameters;
-
-    try
-    {
-        const double *pVolTrans = pVolMatrix->GetTranslation();
-        geoparameters.m_centerX = (level1[0] + pVolTrans[0]) * parameters.m_lengthScale;
-        geoparameters.m_centerY = (level1[1] + pVolTrans[1]) * parameters.m_lengthScale;
-        geoparameters.m_centerZ = (level1[2] + pVolTrans[2]) * parameters.m_lengthScale;
-        geoparameters.m_widthX = dx * 2.0;
-        geoparameters.m_widthY = dy * 2.0;
-        geoparameters.m_widthZ = dz * 2.0;
-
-        // ATTN: parameters past here taken from uboone
-        geoparameters.m_larTPCVolumeId = 0;
-        geoparameters.m_wirePitchU = 0.300000011921;
-        geoparameters.m_wirePitchV = 0.300000011921;
-        geoparameters.m_wirePitchW = 0.300000011921;
-        geoparameters.m_wireAngleU = 1.04719758034;
-        geoparameters.m_wireAngleV = -1.04719758034;
-        geoparameters.m_wireAngleW = 0.0;
-        geoparameters.m_sigmaUVW = 1;
-        geoparameters.m_isDriftInPositiveX = 0;
-    }
-    catch (const pandora::StatusCodeException &)
-    {
-        std::cout << "CreatePandoraLArTPCs - invalid tpc parameter provided" << std::endl;
-    }
-
-    try
-    {
-        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::Geometry::LArTPC::Create(*pPrimaryPandora, geoparameters));
-    }
-    catch (const pandora::StatusCodeException &)
-    {
-        std::cout << "CreatePandoraLArTPCs - unable to create tpc, insufficient or "
-                     "invalid information supplied"
-                  << std::endl;
-    }
-
     fileSource->Close();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora)
+void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetName, std::vector<std::vector<unsigned int>> &nodePaths, 
+                             std::vector<unsigned int> &currentPath)
 {
-    if (parameters.m_dataFormat == Parameters::LArNDFormat::SED)
+    const std::string nodeName{pSimGeom->GetCurrentNode()->GetName()};
+    if (nodeName.find(targetName) != std::string::npos)
     {
-        ProcessSEDEvents(parameters, pPrimaryPandora);
+        nodePaths.emplace_back(currentPath);
     }
     else
     {
-        ProcessEDepSimEvents(parameters, pPrimaryPandora);
+        for (unsigned int i = 0; i < pSimGeom->GetCurrentNode()->GetNdaughters(); ++i)
+        {
+            pSimGeom->CdDown(i);
+            currentPath.emplace_back(i);
+            RecursiveGeometrySearch(pSimGeom,targetName,nodePaths,currentPath);
+            pSimGeom->CdUp();
+            currentPath.pop_back();
+        }
+    }
+    return;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, LArNDLArGeomSimple &geom,
+                    const std::unique_ptr<TGeoHMatrix> &pVolMatrix, const TGeoNode *pTargetNode, const unsigned int tpcNumber)
+{
+        // Get the BBox dimensions from the placement volume, which is assumed to be a cube
+        TGeoVolume *pCurrentVol = pTargetNode->GetVolume();
+        TGeoShape *pCurrentShape = pCurrentVol->GetShape();
+//        pCurrentShape->InspectShape();
+        TGeoBBox *pBox = dynamic_cast<TGeoBBox *>(pCurrentShape);
+
+        // Now can get origin/width data from the BBox
+        const double dx = pBox->GetDX() * parameters.m_lengthScale; // Note these are the half widths
+        const double dy = pBox->GetDY() * parameters.m_lengthScale;
+        const double dz = pBox->GetDZ() * parameters.m_lengthScale;
+        const double *pOrigin = pBox->GetOrigin();
+
+//        std::cout << "Origin = (" << pOrigin[0] << ", " << pOrigin[1] << ", " << pOrigin[2] << ")" << std::endl;
+
+        // Translate local origin to global coordinates
+        double level1[3] = {0.0, 0.0, 0.0};
+        pTargetNode->LocalToMasterVect(pOrigin, level1);
+
+//        std::cout << "Level1 = (" << level1[0] << ", " << level1[1] << ", " << level1[2] << ")" << std::endl;
+
+        // Can now create a geometry using the found parameters
+        PandoraApi::Geometry::LArTPC::Parameters geoparameters;
+
+        try
+        {
+            const double *pVolTrans = pVolMatrix->GetTranslation();
+            const double centreX = (level1[0] + pVolTrans[0]) * parameters.m_lengthScale;
+            const double centreY = (level1[1] + pVolTrans[1]) * parameters.m_lengthScale;
+            const double centreZ = (level1[2] + pVolTrans[2]) * parameters.m_lengthScale;
+            geoparameters.m_centerX = centreX;
+            geoparameters.m_centerY = centreY;
+            geoparameters.m_centerZ = centreZ;
+            geoparameters.m_widthX = dx * 2.0;
+            geoparameters.m_widthY = dy * 2.0;
+            geoparameters.m_widthZ = dz * 2.0;
+
+            // ATTN: parameters past here taken from uboone
+            geoparameters.m_larTPCVolumeId = tpcNumber;
+            geoparameters.m_wirePitchU = 0.300000011921;
+            geoparameters.m_wirePitchV = 0.300000011921;
+            geoparameters.m_wirePitchW = 0.300000011921;
+            geoparameters.m_wireAngleU = 1.04719758034;
+            geoparameters.m_wireAngleV = -1.04719758034;
+            geoparameters.m_wireAngleW = 0.0;
+            geoparameters.m_sigmaUVW = 1;
+            geoparameters.m_isDriftInPositiveX = tpcNumber % 2;
+
+            geom.AddTPC(centreX - dx, centreX + dx, centreY - dy, centreY + dy, centreZ - dz, centreZ + dz, tpcNumber);
+        }
+        catch (const pandora::StatusCodeException &)
+        {
+            std::cout << "CreatePandoraLArTPCs - invalid tpc parameter provided" << std::endl;
+        }
+
+        try
+        {
+            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::Geometry::LArTPC::Create(*pPrimaryPandora, geoparameters));
+        }
+        catch (const pandora::StatusCodeException &)
+        {
+            std::cout << "CreatePandoraLArTPCs - unable to create tpc, insufficient or "
+                         "invalid information supplied"
+                      << std::endl;
+        }
+
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom)
+{
+    if (parameters.m_dataFormat == Parameters::LArNDFormat::SED)
+    {
+        ProcessSEDEvents(parameters, pPrimaryPandora, geom);
+    }
+    else
+    {
+        ProcessEDepSimEvents(parameters, pPrimaryPandora, geom);
     }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora)
+void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom)
 {
 
     TFile *fileSource = TFile::Open(parameters.m_inputFileName.c_str(), "READ");
@@ -282,15 +363,13 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
         return;
     }
 
-    LArNDLArGeomSimple geom;
-
     TG4Event *pEDepSimEvent(nullptr);
     pEDepSimTree->SetBranchAddress("Event", &pEDepSimEvent);
 
     // Factory for creating LArCaloHits
     lar_content::LArCaloHitFactory m_larCaloHitFactory;
 
-    const LArGrid grid = MakeVoxelisationGrid(pPrimaryPandora,parameters);
+    const LArGrid grid = parameters.m_useModularGeometry ? MakeVoxelisationGrid(geom,parameters) : MakeVoxelisationGrid(pPrimaryPandora,parameters);
 
     std::cout << "Total grid volume: bot = " << grid.m_bottom << "\n top = " << grid.m_top << std::endl;
     std::cout << "Making voxels with size " << grid.m_binWidths << std::endl;
@@ -377,9 +456,9 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora)
+void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom)
 {
-
+    std::cout << "About to process SED events" << std::endl;
     TFile *fileSource = TFile::Open(parameters.m_inputFileName.c_str(), "READ");
     if (!fileSource)
     {
@@ -397,8 +476,7 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
 
     const LArSED larsed(ndsim);
 
-    LArNDLArGeomSimple geom;
-    const LArGrid grid = MakeVoxelisationGrid(pPrimaryPandora,parameters);
+    const LArGrid grid = parameters.m_useModularGeometry ? MakeVoxelisationGrid(geom,parameters) : MakeVoxelisationGrid(pPrimaryPandora,parameters);
 
     std::cout << "Total grid volume: bot = " << grid.m_bottom << "\n top = " << grid.m_top << std::endl;
     std::cout << "Making voxels with size " << grid.m_binWidths << std::endl;
@@ -902,6 +980,23 @@ LArGrid MakeVoxelisationGrid(const pandora::Pandora *const pPrimaryPandora, cons
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+LArGrid MakeVoxelisationGrid(const LArNDLArGeomSimple &geom, const Parameters &parameters)
+{
+    double minX{0.f};
+    double maxX{0.f};
+    double minY{0.f};
+    double maxY{0.f};
+    double minZ{0.f};
+    double maxZ{0.f};
+    const float voxelWidth(parameters.m_voxelWidth);
+    geom.GetSurroundingBox(minX,maxX,minY,maxY,minZ,maxZ);
+
+    return LArGrid(pandora::CartesianVector(minX, minY, minZ), pandora::CartesianVector(maxX, maxY, maxZ),
+        pandora::CartesianVector(voxelWidth, voxelWidth, voxelWidth));
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
 LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters, const LArNDLArGeomSimple &geom)
 {
     // Code based on https://github.com/chenel/larcv2/tree/edepsim-formattruth/larcv/app/Supera/Voxelize.cxx
@@ -1046,16 +1141,23 @@ LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Pa
         // Here, hitLength is guaranteed to be greater than zero
         const float voxelEnergy(g4HitEnergy * dL / hitLength);
 
-        // Store voxel object in vector if it is in a tpc. Dummy value of 999
-        // if the position is not in a TPC (could be in a cathode or module gap)
-        const unsigned int tpcID(geom.GetTPCNumber(voxelPoint));
-        if (tpcID != 999)
+        if (parameters.m_useModularGeometry)
         {
-            const LArVoxel voxel(voxelID, voxelEnergy, voxBot, trackID, tpcID);
-            currentVoxelList.emplace_back(voxel);
+            // If using modular geometry we need to assign the tpc number
+            const unsigned int tpcID(geom.GetTPCNumber(voxelPoint));
+            if (tpcID != 999)
+            {
+                const LArVoxel voxel(voxelID, voxelEnergy, voxBot, trackID, tpcID);
+                currentVoxelList.emplace_back(voxel);
+            }
+            else
+                std::cout << "Hit not in TPC: " << voxelPoint << std::endl;
         }
         else
-            std::cout << "Hit not in TPC: " << voxelPoint << std::endl;
+        {
+            const LArVoxel voxel(voxelID, voxelEnergy, voxBot, trackID);
+            currentVoxelList.emplace_back(voxel);
+        }
 
         // Update ray starting position using intersection path difference
         const pandora::CartesianVector newStart = ray.GetPoint(dL);
@@ -1231,6 +1333,7 @@ void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMa
             caloHitParameters.m_electromagneticEnergy = voxelE;
             caloHitParameters.m_hadronicEnergy = voxelE;
             caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
+            caloHitParameters.m_larTPCVolumeId = voxel.m_tpcID;
     
             PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
                 PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
@@ -1291,6 +1394,7 @@ void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMa
                 caloHitParameters.m_hadronicEnergy = voxelE;
                 caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
                 caloHitParameters.m_hitType = hit.m_view;
+                caloHitParameters.m_larTPCVolumeId = hit.m_tpcID;
     
                 // Create LArCaloHits for U, V and W views
                 PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
@@ -1366,7 +1470,7 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
     std::string geomFileName("");
     std::string inputTreeName("");
 
-    while ((cOpt = getopt(argc, argv, "r:i:e:k:f:g:t:v:d:n:s:j:w:m:c:pNh")) != -1)
+    while ((cOpt = getopt(argc, argv, "r:i:e:k:f:g:t:v:d:n:s:j:w:m:c:MpNh")) != -1)
     {
         switch (cOpt)
         {
@@ -1396,6 +1500,9 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
                 break;
             case 'd':
                 parameters.m_sensitiveDetName = optarg;
+                break;
+            case 'M':
+                parameters.m_useModularGeometry = true;
                 break;
             case 'n':
                 parameters.m_nEventsToProcess = atoi(optarg);

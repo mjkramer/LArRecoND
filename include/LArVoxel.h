@@ -127,12 +127,12 @@ public:
      */
     LArVoxelProjection(const float energy, const float w, const float x, const pandora::HitType &view, const int trackid, const unsigned int tpcid);
 
-    float m_energy;
-    float m_wire;
-    float m_drift;
-    pandora::HitType m_view;
-    int m_trackID;
-    unsigned int m_tpcID;
+    float m_energy;           ///< energy deposited in the voxel
+    float m_wire;             ///< projected wire coordinate of the voxel
+    float m_drift;            ///< drift coordinate (x coordinate of the voxel)
+    pandora::HitType m_view;  ///< hit type to label the U, V and W views
+    int m_trackID;            ///< true particle responsible for the majority of the energy
+    unsigned int m_tpcID;     ///< id of the TPC containing the voxel
 };
 
 typedef std::vector<LArVoxelProjection> LArVoxelProjectionList;

@@ -10,6 +10,8 @@
 
 #include "Pandora/PandoraInputTypes.h"
 #include "TG4Event.h"
+#include "TGeoNode.h"
+#include "TGeoManager.h"
 
 #include "LArGrid.h"
 #include "LArHitInfo.h"
@@ -60,6 +62,7 @@ public:
 
     std::string m_geometryVolName;  ///< The name of the Geant4 detector placement volume
     std::string m_sensitiveDetName; ///< The name of the Geant4 sensitive hit detector
+    bool m_useModularGeometry;      ///< Include each TPC as a separate volume in the geometry
 
     int m_nEventsToProcess;          ///< The number of events to process (default all
                                      ///< events in file)
@@ -102,6 +105,7 @@ inline Parameters::Parameters() :
     m_geomManagerName("EDepSimGeometry"),
     m_geometryVolName("volArgonCubeDetector_PV_0"),
     m_sensitiveDetName("ArgonCube"),
+    m_useModularGeometry(false),
     m_nEventsToProcess(-1),
     m_shouldDisplayEventNumber(false),
     m_shouldRunAllHitsCosmicReco(true),
@@ -131,8 +135,37 @@ inline Parameters::Parameters() :
  *
  *  @param  parameters The application parameters
  *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void CreateGeometry(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
+void CreateGeometry(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, LArNDLArGeomSimple &geom);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Recursively search for volumes with the target name
+ *
+ *  @param  pSimGeom pointer to the input geometry
+ *  @param  targetName the volume name that we want to find
+ *  @param  nodeVector daughter indices to recreate the path to the target nodes
+ *  @param  currentPath path to the current position in the geometry
+ */
+void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetName, std::vector<std::vector<unsigned int>> &nodePaths, 
+                             std::vector<unsigned int> &currentPath);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Create and register a tpc in pandora
+ *
+ *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  parameters The application parameters
+ *  @param  geom Simple representation of the geometry for assigning TPC numbers
+ *  @param  pVolMatrix matrix required to convert TPC coordinates to world
+ *  @param  targetNode pointer to the TPC geometry node
+ *  @param  tpcNumber the number for the TPC volume
+ */
+void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, LArNDLArGeomSimple &geom,
+                    const std::unique_ptr<TGeoHMatrix> &pVolMatrix, const TGeoNode *targetNode, const unsigned int tpcNumber);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -141,8 +174,9 @@ void CreateGeometry(const Parameters &parameters, const pandora::Pandora *const 
  *
  *  @param  parameters The application parameters
  *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
+void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -151,8 +185,9 @@ void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const p
  *
  *  @param  parameters The application parameters
  *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void ProcessEDepSimEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
+void ProcessEDepSimEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -161,8 +196,9 @@ void ProcessEDepSimEvents(const Parameters &parameters, const pandora::Pandora *
  *
  *  @param  parameters The application parameters
  *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void ProcessSEDEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
+void ProcessSEDEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -222,6 +258,18 @@ std::string GetNuanceReaction(const int ccnc, const int mode);
  *  @return the LArGrid object
  */
 LArGrid MakeVoxelisationGrid(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Create the LArGrid for making voxels using the geometry
+ *
+ *  @param  geom simple representation of the geometry
+ *  @param  parameters the application parameters
+ *
+ *  @return the LArGrid object
+ */
+LArGrid MakeVoxelisationGrid(const LArNDLArGeomSimple &geom, const Parameters &parameters);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
