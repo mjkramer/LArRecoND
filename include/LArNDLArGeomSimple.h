@@ -51,9 +51,9 @@ public:
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 inline LArNDLArTPCSimple::LArNDLArTPCSimple() :
-    m_x_min{0.f}, m_x_max{0.f},
-    m_y_min{0.f}, m_y_max{0.f},
-    m_z_min{0.f}, m_z_max{0.f},
+    m_x_min{0.}, m_x_max{0.},
+    m_y_min{0.}, m_y_max{0.},
+    m_z_min{0.}, m_z_max{0.},
     m_TPC_ID{999}
 {
 }
@@ -73,11 +73,12 @@ inline LArNDLArTPCSimple::LArNDLArTPCSimple(const double x_min, const double x_m
 
 inline bool LArNDLArTPCSimple::IsInTPC(const pandora::CartesianVector &pos) const
 {
-    if (pos.GetX() <= m_x_min || pos.GetX() >= m_x_max)
+    const double epsilon = 1.0e-3;
+    if (pos.GetX() <= (m_x_min - epsilon) || pos.GetX() >= (m_x_max + epsilon))
         return false;
-    if (pos.GetY() <= m_y_min || pos.GetY() >= m_y_max)
+    if (pos.GetY() <= (m_y_min - epsilon) || pos.GetY() >= (m_y_max + epsilon))
         return false;
-    if (pos.GetZ() <= m_z_min || pos.GetZ() >= m_z_max)
+    if (pos.GetZ() <= (m_z_min - epsilon) || pos.GetZ() >= (m_z_max + epsilon))
         return false;
 
     return true;

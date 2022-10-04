@@ -150,7 +150,7 @@ void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryP
             const TGeoNode *pTargetNode = pSimGeom->GetCurrentNode();
     
             MakePandoraTPC(pPrimaryPandora,parameters,geom,pVolMatrix,pTargetNode,n);
-            std::cout << "Made TPC " << n << std::endl;
+//            std::cout << "Made TPC " << n << std::endl;
             for (const unsigned int &daughter : nodePaths.at(n))
             {
                 (void)daughter;
@@ -158,6 +158,7 @@ void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryP
             }
     
         }
+        std::cout << "Created " << nodePaths.size() << " TPCs" << std::endl;
     }
     else
     {
