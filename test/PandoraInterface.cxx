@@ -237,10 +237,7 @@ void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Paramet
             geoparameters.m_wireAngleW = 0.0;
             geoparameters.m_sigmaUVW = 1;
             geoparameters.m_isDriftInPositiveX = tpcNumber % 2;
-            std::cout << "TPC " << tpcNumber << " Coordinates: " << std::endl;
-            std::cout << "  - x: " << centreX - dx << ", " << centreX + dx << std::endl;
-            std::cout << "  - y: " << centreY - dy << ", " << centreY + dy << std::endl;
-            std::cout << "  - z: " << centreZ - dz << ", " << centreZ + dz << std::endl;
+
             geom.AddTPC(centreX - dx, centreX + dx, centreY - dy, centreY + dy, centreZ - dz, centreZ + dz, tpcNumber);
         }
         catch (const pandora::StatusCodeException &)
@@ -552,6 +549,8 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
 
     std::cout << "Start event is " << startEvt << " and end event is " << endEvt - 1 << std::endl;
 
+    // There is an offset in y due to a difference in the gdml file used here and the one used
+    // during decoding. This can be removed once the data files have been remade
     const float y_offset{22.0};
 
     for (int iEvt = startEvt; iEvt < endEvt; iEvt++)
@@ -1646,6 +1645,7 @@ bool PrintOptions()
               << "    -v geometryVolName     (optional) [Geant4 geometry placement detector volume name, default = volArgonCubeDetector_PV_0]"
               << std::endl
               << "    -d sensitiveDetName    (optional) [Geant4 sensitive hits detector name, default = ArgonCube]" << std::endl
+              << "    -M                     (optional) [use the modular geometry that makes each TPC active volume separately]" << std::endl
               << std::endl;
 
     return false;
