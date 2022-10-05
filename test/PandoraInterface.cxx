@@ -45,6 +45,7 @@
 #include <memory>
 #include <random>
 #include <string>
+#include <vector>
 
 using namespace pandora;
 using namespace lar_nd_reco;
@@ -333,6 +334,10 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
     {
         ProcessSEDEvents(parameters, pPrimaryPandora, geom);
     }
+    else if (parameters.m_dataFormat == Parameters::LArNDFormat::SP)
+    {
+        ProcessSPEvents(parameters, pPrimaryPandora);
+    }
     else
     {
         ProcessEDepSimEvents(parameters, pPrimaryPandora, geom);
@@ -549,6 +554,147 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
 
         int hitCounter{0};
         MakeCaloHitsFromVoxels(mergedVoxels, MCEnergyMap, pPrimaryPandora, parameters, hitCounter);
+
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
+    } // end event loop
+    
+    fileSource->Close();
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora)
+{
+
+    TFile *fileSource = TFile::Open(parameters.m_inputFileName.c_str(), "READ");
+    if (!fileSource)
+    {
+        std::cout << "Error in ProcessSPEvents(): can't open file " << parameters.m_inputFileName << std::endl;
+        return;
+    }
+
+    TTree *ndsptree = dynamic_cast<TTree *>(fileSource->Get(parameters.m_inputTreeName.c_str()));
+    if (!ndsptree)
+    {
+        std::cout << "Could not find the event tree " << parameters.m_inputTreeName << std::endl;
+        fileSource->Close();
+        return;
+    }
+
+    // Declaration of leaf types
+    int           run;
+    int           subrun;
+    int           event;
+    std::vector<float> *x = 0;
+    std::vector<float> *y = 0;
+    std::vector<float> *z = 0;
+    std::vector<float> *charge = 0;
+
+    ndsptree->SetBranchAddress("run",    &run);
+    ndsptree->SetBranchAddress("subrun", &subrun);
+    ndsptree->SetBranchAddress("event",  &event);
+    ndsptree->SetBranchAddress("x",      &x);
+    ndsptree->SetBranchAddress("y",      &y);
+    ndsptree->SetBranchAddress("z",      &z);
+    ndsptree->SetBranchAddress("charge", &charge);
+
+    // Factory for creating LArCaloHits
+    lar_content::LArCaloHitFactory m_larCaloHitFactory;
+
+    // Voxel width
+    const float voxelWidth(parameters.m_voxelWidth);
+
+    // Total number of entries in the TTree
+    const int nEntries(ndsptree->GetEntries());
+
+    // Starting event
+    const int startEvt = parameters.m_nEventsToSkip > 0 ? parameters.m_nEventsToSkip : 0;
+    // Number of events to process, up to nEntries
+    const int nProcess = parameters.m_nEventsToProcess > 0 ? parameters.m_nEventsToProcess : nEntries;
+    // End event, up to nEntries
+    const int endEvt = (startEvt + nProcess) < nEntries ? startEvt + nProcess : nEntries;
+
+    std::cout << "Start event is " << startEvt << " and end event is " << endEvt - 1 << std::endl;
+
+    for (int iEvt = startEvt; iEvt < endEvt; iEvt++)
+    {
+        if (parameters.m_shouldDisplayEventNumber)
+            std::cout << std::endl << "   PROCESSING EVENT: " << iEvt << std::endl << std::endl;
+
+        ndsptree->GetEntry(iEvt);
+
+        int hitCounter(0);
+
+
+        // Loop over the space points and make them into caloHits
+        for (size_t isp = 0; isp < x->size(); ++isp)
+        {
+            const pandora::CartesianVector voxelPos((*x)[isp], (*y)[isp], (*z)[isp]);
+            const float voxelE = (*charge)[isp];
+            const float MipE = 0.00075;
+            const float voxelMipEquivalentE = voxelE / MipE;
+
+            lar_content::LArCaloHitParameters caloHitParameters;
+            caloHitParameters.m_positionVector = voxelPos;
+            caloHitParameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
+            caloHitParameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
+            caloHitParameters.m_cellGeometry = pandora::RECTANGULAR;
+            caloHitParameters.m_cellSize0 = voxelWidth;
+            caloHitParameters.m_cellSize1 = voxelWidth;
+            caloHitParameters.m_cellThickness = voxelWidth;
+            caloHitParameters.m_nCellRadiationLengths = 1.f;
+            caloHitParameters.m_nCellInteractionLengths = 1.f;
+            caloHitParameters.m_time = 0.f;
+            caloHitParameters.m_inputEnergy = voxelE;
+            caloHitParameters.m_mipEquivalentEnergy = voxelMipEquivalentE;
+            caloHitParameters.m_electromagneticEnergy = voxelE;
+            caloHitParameters.m_hadronicEnergy = voxelE;
+            caloHitParameters.m_isDigital = false;
+            caloHitParameters.m_hitType = pandora::TPC_3D;
+            caloHitParameters.m_hitRegion = pandora::SINGLE_REGION;
+            caloHitParameters.m_layer = 0;
+            caloHitParameters.m_isInOuterSamplingLayer = false;
+            caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
+            caloHitParameters.m_larTPCVolumeId = 0;
+            caloHitParameters.m_daughterVolumeId = 0;
+
+            if (parameters.m_use3D)
+                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                    PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
+
+            if (parameters.m_useLArTPC)
+            {
+                // Create U, V and W views assuming x is the common drift coordinate
+                const float x0_cm(voxelPos.GetX());
+                const float y0_cm(voxelPos.GetY());
+                const float z0_cm(voxelPos.GetZ());
+
+                lar_content::LArCaloHitParameters caloHitPars_UView(caloHitParameters);
+                caloHitPars_UView.m_hitType = pandora::TPC_VIEW_U;
+                const float upos_cm(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoU(y0_cm, z0_cm));
+                caloHitPars_UView.m_positionVector = pandora::CartesianVector(x0_cm, 0.f, upos_cm);
+
+                lar_content::LArCaloHitParameters caloHitPars_VView(caloHitParameters);
+                caloHitPars_VView.m_hitType = pandora::TPC_VIEW_V;
+                const float vpos_cm(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoV(y0_cm, z0_cm));
+                caloHitPars_VView.m_positionVector = pandora::CartesianVector(x0_cm, 0.f, vpos_cm);
+
+                lar_content::LArCaloHitParameters caloHitPars_WView(caloHitParameters);
+                caloHitPars_WView.m_hitType = pandora::TPC_VIEW_W;
+                const float wpos_cm(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoW(y0_cm, z0_cm));
+                caloHitPars_WView.m_positionVector = pandora::CartesianVector(x0_cm, 0.f, wpos_cm);
+
+                // Create LArCaloHits for U, V and W views
+                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                    PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_UView, m_larCaloHitFactory));
+                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                    PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_VView, m_larCaloHitFactory));
+                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                    PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_WView, m_larCaloHitFactory));
+            }
+
+        } // end space point loop
 
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
@@ -1714,6 +1860,19 @@ void ProcessFormatOption(const std::string &formatOption, const std::string &inp
         parameters.m_energyScale = 1.0f;
         // Set expected input TTree name for SED data
         parameters.m_inputTreeName = "simdump/ndsim";
+    }
+    else if (chosenFormatOption == "sp")
+    {
+        // Space point ROOT format
+        parameters.m_dataFormat = Parameters::LArNDFormat::SP;
+        // Set the geometry file name
+        parameters.m_geomFileName = geomFileName;
+        // All lengths are already in cm, so don't rescale
+        parameters.m_lengthScale = 1.0f;
+        // All energies are already in GeV, so don't rescale
+        parameters.m_energyScale = 1.0f;
+        // Set expected input TTree name for space point data
+        parameters.m_inputTreeName = "spdump/sp";
     }
     else
     {
