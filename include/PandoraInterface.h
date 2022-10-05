@@ -43,7 +43,8 @@ public:
     enum LArNDFormat
     {
         EDepSim = 0,
-        SED = 1
+        SED = 1,
+        SP  = 2
     };
 
     LArNDFormat m_dataFormat; ///< The expected input data format (EDepSim rooTracker or SED ROOT)
@@ -162,6 +163,16 @@ void ProcessEDepSimEvents(const Parameters &parameters, const pandora::Pandora *
  *  @param  pPrimaryPandora The address of the primary pandora instance
  */
 void ProcessSEDEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Process events using the supplied pandora instance, assuming SP format
+ *
+ *  @param  parameters The application parameters
+ *  @param  pPrimaryPandora The address of the primary pandora instance
+ */
+void ProcessSPEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
