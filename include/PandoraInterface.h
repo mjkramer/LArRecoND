@@ -17,7 +17,7 @@
 #include "LArHitInfo.h"
 #include "LArSED.h"
 #include "LArVoxel.h"
-#include "LArNDLArGeomSimple.h"
+#include "LArNDGeomSimple.h"
 
 namespace pandora
 {
@@ -138,7 +138,7 @@ inline Parameters::Parameters() :
  *  @param  pPrimaryPandora The address of the primary pandora instance
  *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void CreateGeometry(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, LArNDLArGeomSimple &geom);
+void CreateGeometry(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, LArNDGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -165,7 +165,7 @@ void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetNam
  *  @param  targetNode pointer to the TPC geometry node
  *  @param  tpcNumber the number for the TPC volume
  */
-void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, LArNDLArGeomSimple &geom,
+void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, LArNDGeomSimple &geom,
                     const std::unique_ptr<TGeoHMatrix> &pVolMatrix, const TGeoNode *targetNode, const unsigned int tpcNumber);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -177,7 +177,7 @@ void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Paramet
  *  @param  pPrimaryPandora The address of the primary pandora instance
  *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom);
+void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -188,7 +188,7 @@ void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const p
  *  @param  pPrimaryPandora The address of the primary pandora instance
  *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void ProcessEDepSimEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom);
+void ProcessEDepSimEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -199,7 +199,7 @@ void ProcessEDepSimEvents(const Parameters &parameters, const pandora::Pandora *
  *  @param  pPrimaryPandora The address of the primary pandora instance
  *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void ProcessSEDEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom);
+void ProcessSEDEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -280,7 +280,7 @@ LArGrid MakeVoxelisationGrid(const pandora::Pandora *const pPrimaryPandora, cons
  *
  *  @return the LArGrid object
  */
-LArGrid MakeVoxelisationGrid(const LArNDLArGeomSimple &geom, const Parameters &parameters);
+LArGrid MakeVoxelisationGrid(const LArNDGeomSimple &geom, const Parameters &parameters);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -294,7 +294,7 @@ LArGrid MakeVoxelisationGrid(const LArNDLArGeomSimple &geom, const Parameters &p
  *
  *  @return vector of LArVoxels
  */
-LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters, const LArNDLArGeomSimple &geom);
+LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters, const LArNDGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 

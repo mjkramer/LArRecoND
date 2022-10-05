@@ -33,7 +33,7 @@
 #include "larpandoracontent/LArPlugins/LArRotationalTransformationPlugin.h"
 
 #include "LArRay.h"
-#include "LArNDLArGeomSimple.h"
+#include "LArNDGeomSimple.h"
 #include "PandoraInterface.h"
 
 #ifdef MONITORING
@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
         MultiPandoraApi::AddPrimaryPandoraInstance(pPrimaryPandora);
 
 
-        LArNDLArGeomSimple simpleGeom;
+        LArNDGeomSimple simpleGeom;
         CreateGeometry(parameters, pPrimaryPandora, simpleGeom);
         ProcessExternalParameters(parameters, pPrimaryPandora);
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::SetPseudoLayerPlugin(*pPrimaryPandora, new lar_content::LArPseudoLayerPlugin));
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 namespace lar_nd_reco
 {
 
-void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryPandora, LArNDLArGeomSimple &geom)
+void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryPandora, LArNDGeomSimple &geom)
 {
     // Get the geometry info from the appropriate ROOT file
     TFile *fileSource = TFile::Open(parameters.m_geomFileName.c_str(), "READ");
@@ -188,7 +188,7 @@ void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetNam
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, LArNDLArGeomSimple &geom,
+void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, LArNDGeomSimple &geom,
                     const std::unique_ptr<TGeoHMatrix> &pVolMatrix, const TGeoNode *pTargetNode, const unsigned int tpcNumber)
 {
         // Get the BBox dimensions from the placement volume, which is assumed to be a cube
@@ -237,7 +237,10 @@ void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Paramet
             geoparameters.m_wireAngleW = 0.0;
             geoparameters.m_sigmaUVW = 1;
             geoparameters.m_isDriftInPositiveX = tpcNumber % 2;
-
+            std::cout << "TPC " << tpcNumber << " Coordinates: " << std::endl;
+            std::cout << "  - x: " << centreX - dx << ", " << centreX + dx << std::endl;
+            std::cout << "  - y: " << centreY - dy << ", " << centreY + dy << std::endl;
+            std::cout << "  - z: " << centreZ - dz << ", " << centreZ + dz << std::endl;
             geom.AddTPC(centreX - dx, centreX + dx, centreY - dy, centreY + dy, centreZ - dz, centreZ + dz, tpcNumber);
         }
         catch (const pandora::StatusCodeException &)
@@ -260,7 +263,7 @@ void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Paramet
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom)
+void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom)
 {
     if (parameters.m_dataFormat == Parameters::LArNDFormat::SED)
     {
@@ -278,7 +281,7 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom)
+void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom)
 {
 
     TFile *fileSource = TFile::Open(parameters.m_inputFileName.c_str(), "READ");
@@ -390,7 +393,7 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDLArGeomSimple &geom)
+void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom)
 {
     std::cout << "About to process SED events" << std::endl;
     TFile *fileSource = TFile::Open(parameters.m_inputFileName.c_str(), "READ");
@@ -1056,7 +1059,7 @@ LArGrid MakeVoxelisationGrid(const pandora::Pandora *const pPrimaryPandora, cons
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-LArGrid MakeVoxelisationGrid(const LArNDLArGeomSimple &geom, const Parameters &parameters)
+LArGrid MakeVoxelisationGrid(const LArNDGeomSimple &geom, const Parameters &parameters)
 {
     double minX{0.f};
     double maxX{0.f};
@@ -1073,7 +1076,7 @@ LArGrid MakeVoxelisationGrid(const LArNDLArGeomSimple &geom, const Parameters &p
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters, const LArNDLArGeomSimple &geom)
+LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters, const LArNDGeomSimple &geom)
 {
     // Code based on https://github.com/chenel/larcv2/tree/edepsim-formattruth/larcv/app/Supera/Voxelize.cxx
     // which is made available under the MIT license (which is fully compatible with Pandora's GPLv3 license).
@@ -1220,8 +1223,8 @@ LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Pa
         if (parameters.m_useModularGeometry)
         {
             // If using modular geometry we need to assign the tpc number
-            const unsigned int tpcID(geom.GetTPCNumber(voxelPoint));
-            if (tpcID != 999)
+            const int tpcID(geom.GetTPCNumber(voxelPoint));
+            if (tpcID != -1)
             {
                 const LArVoxel voxel(voxelID, voxelEnergy, voxBot, trackID, tpcID);
                 currentVoxelList.emplace_back(voxel);
