@@ -10,14 +10,14 @@
 
 #include "Pandora/PandoraInputTypes.h"
 #include "TG4Event.h"
-#include "TGeoNode.h"
 #include "TGeoManager.h"
+#include "TGeoNode.h"
 
 #include "LArGrid.h"
 #include "LArHitInfo.h"
+#include "LArNDGeomSimple.h"
 #include "LArSED.h"
 #include "LArVoxel.h"
-#include "LArNDGeomSimple.h"
 
 namespace pandora
 {
@@ -47,7 +47,7 @@ public:
     {
         EDepSim = 0,
         SED = 1,
-        SP  = 2
+        SP = 2
     };
 
     LArNDFormat m_dataFormat; ///< The expected input data format (EDepSim rooTracker or SED ROOT)
@@ -150,8 +150,8 @@ void CreateGeometry(const Parameters &parameters, const pandora::Pandora *const 
  *  @param  nodeVector daughter indices to recreate the path to the target nodes
  *  @param  currentPath path to the current position in the geometry
  */
-void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetName, std::vector<std::vector<unsigned int>> &nodePaths, 
-                             std::vector<unsigned int> &currentPath);
+void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetName, std::vector<std::vector<unsigned int>> &nodePaths,
+    std::vector<unsigned int> &currentPath);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -166,7 +166,7 @@ void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetNam
  *  @param  tpcNumber the number for the TPC volume
  */
 void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, LArNDGeomSimple &geom,
-                    const std::unique_ptr<TGeoHMatrix> &pVolMatrix, const TGeoNode *targetNode, const unsigned int tpcNumber);
+    const std::unique_ptr<TGeoHMatrix> &pVolMatrix, const TGeoNode *targetNode, const unsigned int tpcNumber);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -329,8 +329,8 @@ LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits);
  *  @param  parameters the application parameters
  *  @param  hitCounter reference to keep track of the number of hits
  */
-void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMap &mcEnergyMap, 
-                            const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, int &hitCounter);
+void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMap &mcEnergyMap,
+    const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, int &hitCounter);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 

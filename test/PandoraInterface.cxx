@@ -32,8 +32,8 @@
 #include "larpandoracontent/LArPlugins/LArPseudoLayerPlugin.h"
 #include "larpandoracontent/LArPlugins/LArRotationalTransformationPlugin.h"
 
-#include "LArRay.h"
 #include "LArNDGeomSimple.h"
+#include "LArRay.h"
 #include "PandoraInterface.h"
 
 #ifdef MONITORING
@@ -76,7 +76,6 @@ int main(int argc, char *argv[])
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, LArContent::RegisterBasicPlugins(*pPrimaryPandora));
 
         MultiPandoraApi::AddPrimaryPandoraInstance(pPrimaryPandora);
-
 
         LArNDGeomSimple simpleGeom;
         CreateGeometry(parameters, pPrimaryPandora, simpleGeom);
@@ -130,7 +129,7 @@ void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryP
     std::vector<std::vector<unsigned int>> nodePaths; // Store the daughter indices in the path to the node
     std::vector<unsigned int> currentPath;
     const std::string nameToFind = parameters.m_useModularGeometry ? parameters.m_sensitiveDetName : parameters.m_geometryVolName;
-    RecursiveGeometrySearch(pSimGeom,nameToFind,nodePaths,currentPath);
+    RecursiveGeometrySearch(pSimGeom, nameToFind, nodePaths, currentPath);
     std::cout << "Found " << nodePaths.size() << " matches for volumes containing the name " << nameToFind << std::endl;
 
     // Navigate to each node and use them to build the pandora geometry
@@ -147,25 +146,24 @@ void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryP
             pVolMatrix->Multiply(pMatrix.get());
         }
         const TGeoNode *pTargetNode = pSimGeom->GetCurrentNode();
-  
-        MakePandoraTPC(pPrimaryPandora,parameters,geom,pVolMatrix,pTargetNode,n);
+
+        MakePandoraTPC(pPrimaryPandora, parameters, geom, pVolMatrix, pTargetNode, n);
 
         for (const unsigned int &daughter : nodePaths.at(n))
         {
             (void)daughter;
             pSimGeom->CdUp();
         }
-    
     }
     std::cout << "Created " << nodePaths.size() << " TPCs" << std::endl;
-    
+
     fileSource->Close();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetName, std::vector<std::vector<unsigned int>> &nodePaths, 
-                             std::vector<unsigned int> &currentPath)
+void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetName, std::vector<std::vector<unsigned int>> &nodePaths,
+    std::vector<unsigned int> &currentPath)
 {
     const std::string nodeName{pSimGeom->GetCurrentNode()->GetName()};
     if (nodeName.find(targetName) != std::string::npos)
@@ -178,7 +176,7 @@ void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetNam
         {
             pSimGeom->CdDown(i);
             currentPath.emplace_back(i);
-            RecursiveGeometrySearch(pSimGeom,targetName,nodePaths,currentPath);
+            RecursiveGeometrySearch(pSimGeom, targetName, nodePaths, currentPath);
             pSimGeom->CdUp();
             currentPath.pop_back();
         }
@@ -189,73 +187,72 @@ void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetNam
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, LArNDGeomSimple &geom,
-                    const std::unique_ptr<TGeoHMatrix> &pVolMatrix, const TGeoNode *pTargetNode, const unsigned int tpcNumber)
+    const std::unique_ptr<TGeoHMatrix> &pVolMatrix, const TGeoNode *pTargetNode, const unsigned int tpcNumber)
 {
-        // Get the BBox dimensions from the placement volume, which is assumed to be a cube
-        TGeoVolume *pCurrentVol = pTargetNode->GetVolume();
-        TGeoShape *pCurrentShape = pCurrentVol->GetShape();
-//        pCurrentShape->InspectShape();
-        TGeoBBox *pBox = dynamic_cast<TGeoBBox *>(pCurrentShape);
+    // Get the BBox dimensions from the placement volume, which is assumed to be a cube
+    TGeoVolume *pCurrentVol = pTargetNode->GetVolume();
+    TGeoShape *pCurrentShape = pCurrentVol->GetShape();
+    //        pCurrentShape->InspectShape();
+    TGeoBBox *pBox = dynamic_cast<TGeoBBox *>(pCurrentShape);
 
-        // Now can get origin/width data from the BBox
-        const double dx = pBox->GetDX() * parameters.m_lengthScale; // Note these are the half widths
-        const double dy = pBox->GetDY() * parameters.m_lengthScale;
-        const double dz = pBox->GetDZ() * parameters.m_lengthScale;
-        const double *pOrigin = pBox->GetOrigin();
+    // Now can get origin/width data from the BBox
+    const double dx = pBox->GetDX() * parameters.m_lengthScale; // Note these are the half widths
+    const double dy = pBox->GetDY() * parameters.m_lengthScale;
+    const double dz = pBox->GetDZ() * parameters.m_lengthScale;
+    const double *pOrigin = pBox->GetOrigin();
 
-//        std::cout << "Origin = (" << pOrigin[0] << ", " << pOrigin[1] << ", " << pOrigin[2] << ")" << std::endl;
+    //        std::cout << "Origin = (" << pOrigin[0] << ", " << pOrigin[1] << ", " << pOrigin[2] << ")" << std::endl;
 
-        // Translate local origin to global coordinates
-        double level1[3] = {0.0, 0.0, 0.0};
-        pTargetNode->LocalToMasterVect(pOrigin, level1);
+    // Translate local origin to global coordinates
+    double level1[3] = {0.0, 0.0, 0.0};
+    pTargetNode->LocalToMasterVect(pOrigin, level1);
 
-//        std::cout << "Level1 = (" << level1[0] << ", " << level1[1] << ", " << level1[2] << ")" << std::endl;
+    //        std::cout << "Level1 = (" << level1[0] << ", " << level1[1] << ", " << level1[2] << ")" << std::endl;
 
-        // Can now create a geometry using the found parameters
-        PandoraApi::Geometry::LArTPC::Parameters geoparameters;
+    // Can now create a geometry using the found parameters
+    PandoraApi::Geometry::LArTPC::Parameters geoparameters;
 
-        try
-        {
-            const double *pVolTrans = pVolMatrix->GetTranslation();
-            const double centreX = (level1[0] + pVolTrans[0]) * parameters.m_lengthScale;
-            const double centreY = (level1[1] + pVolTrans[1]) * parameters.m_lengthScale;
-            const double centreZ = (level1[2] + pVolTrans[2]) * parameters.m_lengthScale;
-            geoparameters.m_centerX = centreX;
-            geoparameters.m_centerY = centreY;
-            geoparameters.m_centerZ = centreZ;
-            geoparameters.m_widthX = dx * 2.0;
-            geoparameters.m_widthY = dy * 2.0;
-            geoparameters.m_widthZ = dz * 2.0;
+    try
+    {
+        const double *pVolTrans = pVolMatrix->GetTranslation();
+        const double centreX = (level1[0] + pVolTrans[0]) * parameters.m_lengthScale;
+        const double centreY = (level1[1] + pVolTrans[1]) * parameters.m_lengthScale;
+        const double centreZ = (level1[2] + pVolTrans[2]) * parameters.m_lengthScale;
+        geoparameters.m_centerX = centreX;
+        geoparameters.m_centerY = centreY;
+        geoparameters.m_centerZ = centreZ;
+        geoparameters.m_widthX = dx * 2.0;
+        geoparameters.m_widthY = dy * 2.0;
+        geoparameters.m_widthZ = dz * 2.0;
 
-            // ATTN: parameters past here taken from uboone
-            geoparameters.m_larTPCVolumeId = tpcNumber;
-            geoparameters.m_wirePitchU = 0.300000011921;
-            geoparameters.m_wirePitchV = 0.300000011921;
-            geoparameters.m_wirePitchW = 0.300000011921;
-            geoparameters.m_wireAngleU = 1.04719758034;
-            geoparameters.m_wireAngleV = -1.04719758034;
-            geoparameters.m_wireAngleW = 0.0;
-            geoparameters.m_sigmaUVW = 1;
-            geoparameters.m_isDriftInPositiveX = tpcNumber % 2;
+        // ATTN: parameters past here taken from uboone
+        geoparameters.m_larTPCVolumeId = tpcNumber;
+        geoparameters.m_wirePitchU = 0.300000011921;
+        geoparameters.m_wirePitchV = 0.300000011921;
+        geoparameters.m_wirePitchW = 0.300000011921;
+        geoparameters.m_wireAngleU = 1.04719758034;
+        geoparameters.m_wireAngleV = -1.04719758034;
+        geoparameters.m_wireAngleW = 0.0;
+        geoparameters.m_sigmaUVW = 1;
+        geoparameters.m_isDriftInPositiveX = tpcNumber % 2;
 
-            geom.AddTPC(centreX - dx, centreX + dx, centreY - dy, centreY + dy, centreZ - dz, centreZ + dz, tpcNumber);
-        }
-        catch (const pandora::StatusCodeException &)
-        {
-            std::cout << "CreatePandoraLArTPCs - invalid tpc parameter provided" << std::endl;
-        }
+        geom.AddTPC(centreX - dx, centreX + dx, centreY - dy, centreY + dy, centreZ - dz, centreZ + dz, tpcNumber);
+    }
+    catch (const pandora::StatusCodeException &)
+    {
+        std::cout << "CreatePandoraLArTPCs - invalid tpc parameter provided" << std::endl;
+    }
 
-        try
-        {
-            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::Geometry::LArTPC::Create(*pPrimaryPandora, geoparameters));
-        }
-        catch (const pandora::StatusCodeException &)
-        {
-            std::cout << "CreatePandoraLArTPCs - unable to create tpc, insufficient or "
-                         "invalid information supplied"
-                      << std::endl;
-        }
-
+    try
+    {
+        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::Geometry::LArTPC::Create(*pPrimaryPandora, geoparameters));
+    }
+    catch (const pandora::StatusCodeException &)
+    {
+        std::cout << "CreatePandoraLArTPCs - unable to create tpc, insufficient or "
+                     "invalid information supplied"
+                  << std::endl;
+    }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -302,7 +299,7 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
     // Factory for creating LArCaloHits
     lar_content::LArCaloHitFactory m_larCaloHitFactory;
 
-    const LArGrid grid = parameters.m_useModularGeometry ? MakeVoxelisationGrid(geom,parameters) : MakeVoxelisationGrid(pPrimaryPandora,parameters);
+    const LArGrid grid = parameters.m_useModularGeometry ? MakeVoxelisationGrid(geom, parameters) : MakeVoxelisationGrid(pPrimaryPandora, parameters);
 
     std::cout << "Total grid volume: bot = " << grid.m_bottom << "\n top = " << grid.m_top << std::endl;
     std::cout << "Making voxels with size " << grid.m_binWidths << std::endl;
@@ -339,7 +336,7 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
         for (TG4HitSegmentDetectors::iterator detector = pEDepSimEvent->SegmentDetectors.begin();
              detector != pEDepSimEvent->SegmentDetectors.end(); ++detector)
         {
-//            if (detector->first != parameters.m_sensitiveDetName)
+            //            if (detector->first != parameters.m_sensitiveDetName)
             if (detector->first.find(parameters.m_sensitiveDetName) == std::string::npos)
             {
                 std::cout << "Skipping sensitive detector " << detector->first << "; expecting " << parameters.m_sensitiveDetName << std::endl;
@@ -355,8 +352,7 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
             for (TG4HitSegment &g4Hit : detector->second)
             {
                 const LArHitInfo hitInfo(g4Hit, parameters.m_lengthScale, parameters.m_energyScale);
-                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters,geom);
-
+                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters, geom);
 
                 for (const LArVoxel &voxel : currentVoxelList)
                     voxelList.emplace_back(voxel);
@@ -369,14 +365,14 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
 
             std::cout << "Produced " << mergedVoxels.size() << " merged voxels from " << voxelList.size() << " voxels." << std::endl;
             voxelList.clear();
-  
+
             // Stop processing the event if we have too many voxels: reco takes too long
             if (parameters.m_maxMergedVoxels > 0 && mergedVoxels.size() > parameters.m_maxMergedVoxels)
             {
                 std::cout << "SKIPPING EVENT: number of merged voxels " << mergedVoxels.size() << " > " << parameters.m_maxMergedVoxels << std::endl;
                 break;
             }
-            
+
             MakeCaloHitsFromVoxels(mergedVoxels, MCEnergyMap, pPrimaryPandora, parameters, hitCounter);
         } // end segment detector loop
 
@@ -410,7 +406,7 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
 
     const LArSED larsed(ndsim);
 
-    const LArGrid grid = parameters.m_useModularGeometry ? MakeVoxelisationGrid(geom,parameters) : MakeVoxelisationGrid(pPrimaryPandora,parameters);
+    const LArGrid grid = parameters.m_useModularGeometry ? MakeVoxelisationGrid(geom, parameters) : MakeVoxelisationGrid(pPrimaryPandora, parameters);
 
     std::cout << "Total grid volume: bot = " << grid.m_bottom << "\n top = " << grid.m_top << std::endl;
     std::cout << "Making voxels with size " << grid.m_binWidths << std::endl;
@@ -455,14 +451,14 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
                 const float endx = (*larsed.sed_endx)[ised];
                 const float endy = (*larsed.sed_endy)[ised];
                 const float endz = (*larsed.sed_endz)[ised];
-                const float energy = (*larsed.sed_energy)[ised]*1e-3; //sed_energy is in MeV, convert it to GeV
+                const float energy = (*larsed.sed_energy)[ised] * 1e-3; //sed_energy is in MeV, convert it to GeV
                 const int g4id = std::abs((*larsed.sed_id)[ised]);
 
                 const pandora::CartesianVector start(startx, starty, startz);
                 const pandora::CartesianVector end(endx, endy, endz);
 
                 const LArHitInfo hitInfo(start, end, energy, g4id, parameters.m_lengthScale, parameters.m_energyScale);
-                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters,geom);
+                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters, geom);
 
                 for (const LArVoxel &voxel : currentVoxelList)
                     voxelList.emplace_back(voxel);
@@ -490,7 +486,7 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
     } // end event loop
-    
+
     fileSource->Close();
 }
 
@@ -515,20 +511,20 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
     }
 
     // Declaration of leaf types
-    int           run;
-    int           subrun;
-    int           event;
+    int run;
+    int subrun;
+    int event;
     std::vector<float> *x = 0;
     std::vector<float> *y = 0;
     std::vector<float> *z = 0;
     std::vector<float> *charge = 0;
 
-    ndsptree->SetBranchAddress("run",    &run);
+    ndsptree->SetBranchAddress("run", &run);
     ndsptree->SetBranchAddress("subrun", &subrun);
-    ndsptree->SetBranchAddress("event",  &event);
-    ndsptree->SetBranchAddress("x",      &x);
-    ndsptree->SetBranchAddress("y",      &y);
-    ndsptree->SetBranchAddress("z",      &z);
+    ndsptree->SetBranchAddress("event", &event);
+    ndsptree->SetBranchAddress("x", &x);
+    ndsptree->SetBranchAddress("y", &y);
+    ndsptree->SetBranchAddress("z", &z);
     ndsptree->SetBranchAddress("charge", &charge);
 
     // Factory for creating LArCaloHits
@@ -595,8 +591,8 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
             caloHitParameters.m_daughterVolumeId = 0;
 
             if (parameters.m_use3D)
-                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                    PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
+                PANDORA_THROW_RESULT_IF(
+                    pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
 
             if (parameters.m_useLArTPC)
             {
@@ -621,12 +617,12 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
                 caloHitPars_WView.m_positionVector = pandora::CartesianVector(x0_cm, 0.f, wpos_cm);
 
                 // Create LArCaloHits for U, V and W views
-                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                    PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_UView, m_larCaloHitFactory));
-                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                    PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_VView, m_larCaloHitFactory));
-                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                    PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_WView, m_larCaloHitFactory));
+                PANDORA_THROW_RESULT_IF(
+                    pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_UView, m_larCaloHitFactory));
+                PANDORA_THROW_RESULT_IF(
+                    pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_VView, m_larCaloHitFactory));
+                PANDORA_THROW_RESULT_IF(
+                    pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitPars_WView, m_larCaloHitFactory));
             }
 
         } // end space point loop
@@ -634,7 +630,7 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
     } // end event loop
-    
+
     fileSource->Close();
 }
 
@@ -1067,7 +1063,7 @@ LArGrid MakeVoxelisationGrid(const LArNDGeomSimple &geom, const Parameters &para
     double minZ{0.f};
     double maxZ{0.f};
     const float voxelWidth(parameters.m_voxelWidth);
-    geom.GetSurroundingBox(minX,maxX,minY,maxY,minZ,maxZ);
+    geom.GetSurroundingBox(minX, maxX, minY, maxY, minZ, maxZ);
 
     return LArGrid(pandora::CartesianVector(minX, minY, minZ), pandora::CartesianVector(maxX, maxY, maxZ),
         pandora::CartesianVector(voxelWidth, voxelWidth, voxelWidth));
@@ -1264,7 +1260,7 @@ LArVoxelList MergeSameVoxels(const LArVoxelList &voxelList)
 
         LArVoxel voxel1 = voxelList[i];
         float voxE1 = voxel1.m_energyInVoxel;
-        std::map<int,float> trackIDToEnergy;
+        std::map<int, float> trackIDToEnergy;
         trackIDToEnergy[voxel1.m_trackID] = voxE1;
 
         // Loop over other voxels (from i+1) and check if we have an ID match.
@@ -1278,7 +1274,7 @@ LArVoxelList MergeSameVoxels(const LArVoxelList &voxelList)
             const LArVoxel voxel2 = voxelList[j];
             const int trackid2 = voxel2.m_trackID;
             const float voxE2 = voxel2.m_energyInVoxel;
-//            if (id2 == id1 && trackid1 == trackid2)
+            //            if (id2 == id1 && trackid1 == trackid2)
             if (voxel2.m_voxelID == voxel1.m_voxelID)
             {
                 // IDs match. Add energy and set processed integer
@@ -1299,17 +1295,17 @@ LArVoxelList MergeSameVoxels(const LArVoxelList &voxelList)
         {
             float highestEnergy{0.f};
             int bestTrackID{-1};
-//            std::cout << "Merged voxel had contributions from " << trackIDToEnergy.size() << " particles" << std::endl;
+            //            std::cout << "Merged voxel had contributions from " << trackIDToEnergy.size() << " particles" << std::endl;
             for (auto const &pair : trackIDToEnergy)
             {
-//                std::cout << " - " << pair.first << " with energy " << pair.second << std::endl;
+                //                std::cout << " - " << pair.first << " with energy " << pair.second << std::endl;
                 if (pair.second > highestEnergy)
                 {
                     highestEnergy = pair.second;
                     bestTrackID = pair.first;
                 }
             }
-//            std::cout << " = chose track id " << bestTrackID << std::endl;
+            //            std::cout << " = chose track id " << bestTrackID << std::endl;
             voxel1.SetTrackID(bestTrackID);
         }
 
@@ -1327,15 +1323,15 @@ LArVoxelList MergeSameVoxels(const LArVoxelList &voxelList)
 LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits)
 {
     LArVoxelProjectionList outputHits;
-    std::vector<bool> areUsed(hits.size(),false);    
+    std::vector<bool> areUsed(hits.size(), false);
 
     for (unsigned int vp1 = 0; vp1 < hits.size(); ++vp1)
     {
-        if(areUsed.at(vp1))
+        if (areUsed.at(vp1))
             continue;
 
         LArVoxelProjection voxProj1{hits.at(vp1)};
-        std::map<int,float> trackIDToEnergy;
+        std::map<int, float> trackIDToEnergy;
         trackIDToEnergy[voxProj1.m_trackID] = voxProj1.m_energy;
         for (unsigned int vp2 = vp1 + 1; vp2 < hits.size(); ++vp2)
         {
@@ -1343,7 +1339,7 @@ LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits)
                 continue;
 
             const LArVoxelProjection &voxProj2 = hits.at(vp2);
-            if ((voxProj1.m_wire != voxProj2.m_wire) || (voxProj1.m_drift != voxProj2.m_drift)) 
+            if ((voxProj1.m_wire != voxProj2.m_wire) || (voxProj1.m_drift != voxProj2.m_drift))
                 continue;
 
             // Add the energy, but keep track of the highest energy contributor
@@ -1352,7 +1348,7 @@ LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits)
                 trackIDToEnergy[voxProj2.m_trackID] += voxProj2.m_energy;
             else
                 trackIDToEnergy[voxProj2.m_trackID] = voxProj2.m_energy;
-            
+
             areUsed.at(vp2) = true;
         }
         // Add the hit to the output
@@ -1383,7 +1379,7 @@ LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits)
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMap &mcEnergyMap,
-                            const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, int &hitCounter)
+    const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, int &hitCounter)
 {
 
     // Factory for creating LArCaloHits
@@ -1391,7 +1387,7 @@ void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMa
     const float voxelWidth(parameters.m_voxelWidth);
     const float MipE = 0.00075;
     lar_content::LArCaloHitParameters caloHitParameters = MakeDefaultCaloHitParams(voxelWidth);
-    
+
     if (parameters.m_use3D)
     {
         for (unsigned int v = 0; v < voxels.size(); ++v)
@@ -1400,10 +1396,10 @@ void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMa
             const pandora::CartesianVector voxelPos(voxel.m_voxelPosVect);
             const float voxelE = voxel.m_energyInVoxel;
             const float voxelMipEquivalentE = voxelE / MipE;
-    
+
             if (voxelMipEquivalentE < parameters.m_minVoxelMipEquivE)
                 continue;
-    
+
             // Modify the important fields
             caloHitParameters.m_positionVector = voxelPos;
             caloHitParameters.m_inputEnergy = voxelE;
@@ -1412,17 +1408,17 @@ void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMa
             caloHitParameters.m_hadronicEnergy = voxelE;
             caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
             caloHitParameters.m_larTPCVolumeId = voxel.m_tpcID;
-    
-            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
-    
+
+            PANDORA_THROW_RESULT_IF(
+                pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
+
             // Set calo hit voxel to MCParticle relation using trackID
             const int trackID = voxel.m_trackID;
             const float energyFrac = GetMCEnergyFraction(mcEnergyMap, voxelE, trackID);
             PandoraApi::SetCaloHitToMCParticleRelationship(*pPrimaryPandora, (void *)((intptr_t)hitCounter), (void *)((intptr_t)trackID), energyFrac);
         }
     }
-    
+
     // Treat the 3 x 2D view case separately as we need to merge hits
     // on some of the views depending on the geometry
     if (parameters.m_useLArTPC)
@@ -1430,42 +1426,45 @@ void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMa
         LArVoxelProjectionList voxelProjectionsU;
         LArVoxelProjectionList voxelProjectionsV;
         LArVoxelProjectionList voxelProjectionsW;
-    
+
         for (unsigned int v = 0; v < voxels.size(); ++v)
         {
             const LArVoxel &voxel = voxels.at(v);
             const pandora::CartesianVector voxelPos = voxel.m_voxelPosVect;
-            const float uPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoU(voxelPos.GetY(),voxelPos.GetZ()));
-            voxelProjectionsU.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,uPos,voxelPos.GetX(),pandora::TPC_VIEW_U,voxel.m_trackID,voxel.m_tpcID));
-    
-            const float vPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoV(voxelPos.GetY(),voxelPos.GetZ()));
-            voxelProjectionsV.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,vPos,voxelPos.GetX(),pandora::TPC_VIEW_V,voxel.m_trackID,voxel.m_tpcID));
-    
-            const float wPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoW(voxelPos.GetY(),voxelPos.GetZ()));
-            voxelProjectionsW.emplace_back(LArVoxelProjection(voxel.m_energyInVoxel,wPos,voxelPos.GetX(),pandora::TPC_VIEW_W,voxel.m_trackID,voxel.m_tpcID));
+            const float uPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoU(voxelPos.GetY(), voxelPos.GetZ()));
+            voxelProjectionsU.emplace_back(
+                LArVoxelProjection(voxel.m_energyInVoxel, uPos, voxelPos.GetX(), pandora::TPC_VIEW_U, voxel.m_trackID, voxel.m_tpcID));
+
+            const float vPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoV(voxelPos.GetY(), voxelPos.GetZ()));
+            voxelProjectionsV.emplace_back(
+                LArVoxelProjection(voxel.m_energyInVoxel, vPos, voxelPos.GetX(), pandora::TPC_VIEW_V, voxel.m_trackID, voxel.m_tpcID));
+
+            const float wPos(pPrimaryPandora->GetPlugins()->GetLArTransformationPlugin()->YZtoW(voxelPos.GetY(), voxelPos.GetZ()));
+            voxelProjectionsW.emplace_back(
+                LArVoxelProjection(voxel.m_energyInVoxel, wPos, voxelPos.GetX(), pandora::TPC_VIEW_W, voxel.m_trackID, voxel.m_tpcID));
         }
-    
+
         std::vector<LArVoxelProjectionList> viewProjections;
         viewProjections.emplace_back(MergeSameProjections(voxelProjectionsU));
         viewProjections.emplace_back(MergeSameProjections(voxelProjectionsV));
         viewProjections.emplace_back(MergeSameProjections(voxelProjectionsW));
-        
+
         voxelProjectionsU.clear();
         voxelProjectionsV.clear();
         voxelProjectionsW.clear();
-    
+
         for (const LArVoxelProjectionList &view : viewProjections)
         {
             for (const LArVoxelProjection &hit : view)
             {
                 const float voxelE = hit.m_energy;
                 const float voxelMipEquivalentE = voxelE / MipE;
-                
+
                 if (voxelMipEquivalentE < parameters.m_minVoxelMipEquivE)
                     continue;
-    
+
                 // Modify the important fields
-                caloHitParameters.m_positionVector = pandora::CartesianVector(hit.m_drift,0.f,hit.m_wire);
+                caloHitParameters.m_positionVector = pandora::CartesianVector(hit.m_drift, 0.f, hit.m_wire);
                 caloHitParameters.m_inputEnergy = voxelE;
                 caloHitParameters.m_mipEquivalentEnergy = voxelMipEquivalentE;
                 caloHitParameters.m_electromagneticEnergy = voxelE;
@@ -1473,17 +1472,17 @@ void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMa
                 caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
                 caloHitParameters.m_hitType = hit.m_view;
                 caloHitParameters.m_larTPCVolumeId = hit.m_tpcID;
-    
+
                 // Create LArCaloHits for U, V and W views
-                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                    PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
-            
+                PANDORA_THROW_RESULT_IF(
+                    pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, caloHitParameters, m_larCaloHitFactory));
+
                 // Set calo hit voxel to MCParticle relation using trackID
                 const int trackID = hit.m_trackID;
                 const float energyFrac = GetMCEnergyFraction(mcEnergyMap, voxelE, trackID);
                 PandoraApi::SetCaloHitToMCParticleRelationship(*pPrimaryPandora, (void *)((intptr_t)hitCounter), (void *)((intptr_t)trackID), energyFrac);
             } // end voxel projection loop
-        } // end view loop
+        }     // end view loop
     }
 }
 

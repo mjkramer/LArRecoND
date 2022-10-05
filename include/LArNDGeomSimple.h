@@ -16,10 +16,9 @@ namespace lar_nd_reco
 class LArNDTPCSimple
 {
 public:
-
     /**
      *  @brief  default constructor
-     */  
+     */
     LArNDTPCSimple();
 
     /**
@@ -32,39 +31,37 @@ public:
      *  @param  z_min minimum z value of the TPC box
      *  @param  z_max maximum z value of the TPC box
      *  @param  tpcID unique id of the tpc
-     */  
-    LArNDTPCSimple(const double x_min, const double x_max, const double y_min, const double y_max,
-                 const double z_min, const double z_max, const int tpcID);
+     */
+    LArNDTPCSimple(const double x_min, const double x_max, const double y_min, const double y_max, const double z_min, const double z_max,
+        const int tpcID);
 
     bool IsInTPC(const pandora::CartesianVector &pos) const;
 
-    double m_x_min;         ///< minimum x value of the TPC cubioid
-    double m_x_max;         ///< maximum x value of the TPC cubioid
-    double m_y_min;         ///< minimum y value of the TPC cubioid
-    double m_y_max;         ///< maximum y value of the TPC cubioid
-    double m_z_min;         ///< minimum z value of the TPC cubioid
-    double m_z_max;         ///< maximum z value of the TPC cubioid
-    int m_TPC_ID;           ///< unique id of the TPC
-
+    double m_x_min; ///< minimum x value of the TPC cubioid
+    double m_x_max; ///< maximum x value of the TPC cubioid
+    double m_y_min; ///< minimum y value of the TPC cubioid
+    double m_y_max; ///< maximum y value of the TPC cubioid
+    double m_z_min; ///< minimum z value of the TPC cubioid
+    double m_z_max; ///< maximum z value of the TPC cubioid
+    int m_TPC_ID;   ///< unique id of the TPC
 };
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline LArNDTPCSimple::LArNDTPCSimple() :
-    m_x_min{0.}, m_x_max{0.},
-    m_y_min{0.}, m_y_max{0.},
-    m_z_min{0.}, m_z_max{0.},
-    m_TPC_ID{-1}
+inline LArNDTPCSimple::LArNDTPCSimple() : m_x_min{0.}, m_x_max{0.}, m_y_min{0.}, m_y_max{0.}, m_z_min{0.}, m_z_max{0.}, m_TPC_ID{-1}
 {
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline LArNDTPCSimple::LArNDTPCSimple(const double x_min, const double x_max, const double y_min, const double y_max,
-                                  const double z_min, const double z_max, const int tpcID) :
-    m_x_min{x_min}, m_x_max{x_max},
-    m_y_min{y_min}, m_y_max{y_max},
-    m_z_min{z_min}, m_z_max{z_max},
+inline LArNDTPCSimple::LArNDTPCSimple(const double x_min, const double x_max, const double y_min, const double y_max, const double z_min,
+    const double z_max, const int tpcID) :
+    m_x_min{x_min},
+    m_x_max{x_max},
+    m_y_min{y_min},
+    m_y_max{y_max},
+    m_z_min{z_min},
+    m_z_max{z_max},
     m_TPC_ID{tpcID}
 {
 }
@@ -96,10 +93,9 @@ inline bool LArNDTPCSimple::IsInTPC(const pandora::CartesianVector &pos) const
 class LArNDGeomSimple
 {
 public:
-
     /**
      *  @brief  default constructor
-     */  
+     */
     LArNDGeomSimple();
 
     /**
@@ -131,8 +127,7 @@ public:
      *  @param  max_z maximum z position of the TPC
      *  @param  tpcID tpc id as int
      */
-    void AddTPC(const double min_x, const double max_x, const double min_y, const double max_y,
-                const double min_z, const double max_z, const int tpcID);
+    void AddTPC(const double min_x, const double max_x, const double min_y, const double max_y, const double min_z, const double max_z, const int tpcID);
 
     /**
      *  @brief  Get the box surrounding all TPCs
@@ -146,12 +141,10 @@ public:
      */
     void GetSurroundingBox(double &min_x, double &max_x, double &min_y, double &max_y, double &min_z, double &max_z) const;
 
-    std::map<unsigned int,LArNDTPCSimple> m_TPCs; ///< map of the TPCs keyed on their unique id
+    std::map<unsigned int, LArNDTPCSimple> m_TPCs; ///< map of the TPCs keyed on their unique id
 
 private:
-
 };
-
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -185,13 +178,13 @@ inline int LArNDGeomSimple::GetModuleNumber(const pandora::CartesianVector &posi
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline void LArNDGeomSimple::AddTPC(const double min_x, const double max_x, const double min_y, const double max_y,
-                   const double min_z, const double max_z, const int tpcID)
+inline void LArNDGeomSimple::AddTPC(
+    const double min_x, const double max_x, const double min_y, const double max_y, const double min_z, const double max_z, const int tpcID)
 {
     if (m_TPCs.count(tpcID))
         std::cout << "LArNDGeomSimple: trying to add another TPC with tpc id " << tpcID << "! Doing nothing. " << std::endl;
     else
-        m_TPCs[tpcID] = LArNDTPCSimple(min_x, max_x ,min_y, max_y, min_z, max_z, tpcID);
+        m_TPCs[tpcID] = LArNDTPCSimple(min_x, max_x, min_y, max_y, min_z, max_z, tpcID);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -207,12 +200,12 @@ inline void LArNDGeomSimple::GetSurroundingBox(double &min_x, double &max_x, dou
 
     for (auto const &tpc : m_TPCs)
     {
-        min_x = tpc.second.m_x_min < min_x ? tpc.second.m_x_min : min_x; 
-        min_y = tpc.second.m_y_min < min_y ? tpc.second.m_y_min : min_y; 
-        min_z = tpc.second.m_z_min < min_z ? tpc.second.m_z_min : min_z; 
-        max_x = tpc.second.m_x_max > max_x ? tpc.second.m_x_max : max_x; 
-        max_y = tpc.second.m_y_max > max_y ? tpc.second.m_y_max : max_y; 
-        max_z = tpc.second.m_z_max > max_z ? tpc.second.m_z_max : max_z; 
+        min_x = tpc.second.m_x_min < min_x ? tpc.second.m_x_min : min_x;
+        min_y = tpc.second.m_y_min < min_y ? tpc.second.m_y_min : min_y;
+        min_z = tpc.second.m_z_min < min_z ? tpc.second.m_z_min : min_z;
+        max_x = tpc.second.m_x_max > max_x ? tpc.second.m_x_max : max_x;
+        max_y = tpc.second.m_y_max > max_y ? tpc.second.m_y_max : max_y;
+        max_z = tpc.second.m_z_max > max_z ? tpc.second.m_z_max : max_z;
     }
 }
 
