@@ -56,7 +56,7 @@ public:
     float m_energyInVoxel;                   ///< The energy in the voxel (GeV)
     pandora::CartesianVector m_voxelPosVect; ///< Position vector (x,y,z) of the first voxel corner
     int m_trackID;                           ///< The Geant4 ID of the (first) contributing track to this voxel
-    unsigned int m_tpcID;
+    int m_tpcID;
 };
 
 typedef std::vector<LArVoxel> LArVoxelList;
@@ -132,7 +132,7 @@ public:
     float m_drift;            ///< drift coordinate (x coordinate of the voxel)
     pandora::HitType m_view;  ///< hit type to label the U, V and W views
     int m_trackID;            ///< true particle responsible for the majority of the energy
-    unsigned int m_tpcID;     ///< id of the TPC containing the voxel
+    int m_tpcID;     ///< id of the TPC containing the voxel
 };
 
 typedef std::vector<LArVoxelProjection> LArVoxelProjectionList;
