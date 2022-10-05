@@ -100,7 +100,7 @@ public:
      *
      *  @return tpc number as unsigned int
      */
-    unsigned int GetTPCNumber(const pandora::CartesianVector &position) const;
+    int GetTPCNumber(const pandora::CartesianVector &position) const;
 
     /**
      *  @brief  Get the module number from a 3D position
@@ -109,7 +109,7 @@ public:
      *
      *  @return module number as unsigned int
      */
-    unsigned int GetModuleNumber(const pandora::CartesianVector &position) const;
+    int GetModuleNumber(const pandora::CartesianVector &position) const;
 
     /**
      *  @brief  Add a TPC to the geometry
@@ -152,26 +152,26 @@ LArNDGeomSimple::LArNDGeomSimple()
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline unsigned int LArNDGeomSimple::GetTPCNumber(const pandora::CartesianVector &position) const
+inline int LArNDGeomSimple::GetTPCNumber(const pandora::CartesianVector &position) const
 {
     for (auto const &tpc : m_TPCs)
     {
         if (tpc.second.IsInTPC(position))
             return tpc.first;
     }
-    return 999;
+    return -1;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-inline unsigned int LArNDGeomSimple::GetModuleNumber(const pandora::CartesianVector &position) const
+inline int LArNDGeomSimple::GetModuleNumber(const pandora::CartesianVector &position) const
 {
     for (auto const &tpc : m_TPCs)
     {
         if (tpc.second.IsInTPC(position))
             return tpc.first / 2;
     }
-    return 999;
+    return -1;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
