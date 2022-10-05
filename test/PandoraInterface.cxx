@@ -402,7 +402,8 @@ void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPr
         for (TG4HitSegmentDetectors::iterator detector = pEDepSimEvent->SegmentDetectors.begin();
              detector != pEDepSimEvent->SegmentDetectors.end(); ++detector)
         {
-            if (detector->first != parameters.m_sensitiveDetName)
+//            if (detector->first != parameters.m_sensitiveDetName)
+            if (detector->first.find(parameters.m_sensitiveDetName) == std::string::npos)
             {
                 std::cout << "Skipping sensitive detector " << detector->first << "; expecting " << parameters.m_sensitiveDetName << std::endl;
                 continue;
