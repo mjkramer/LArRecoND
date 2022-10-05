@@ -126,107 +126,39 @@ void CreateGeometry(const Parameters &parameters, const Pandora *const pPrimaryP
         return;
     }
 
-//    if (parameters.m_useModularGeometry)
-//    {
-      // Go through the geometry and find the paths to the nodes we are interested in
-      std::vector<std::vector<unsigned int>> nodePaths; // Store the daughter indices in the path to the node
-      std::vector<unsigned int> currentPath;
-      const std::string nameToFind = parameters.m_useModularGeometry ? parameters.m_sensitiveDetName : parameters.m_geometryVolName;
-      RecursiveGeometrySearch(pSimGeom,nameToFind,nodePaths,currentPath);
-      std::cout << "Found " << nodePaths.size() << " matches for volumes containing the name " << nameToFind << std::endl;
+    // Go through the geometry and find the paths to the nodes we are interested in
+    std::vector<std::vector<unsigned int>> nodePaths; // Store the daughter indices in the path to the node
+    std::vector<unsigned int> currentPath;
+    const std::string nameToFind = parameters.m_useModularGeometry ? parameters.m_sensitiveDetName : parameters.m_geometryVolName;
+    RecursiveGeometrySearch(pSimGeom,nameToFind,nodePaths,currentPath);
+    std::cout << "Found " << nodePaths.size() << " matches for volumes containing the name " << nameToFind << std::endl;
 
-      // Navigate to each node and use them to build the pandora geometry
-      for (unsigned int n = 0; n < nodePaths.size(); ++n)
-      {
-          const TGeoNode *pTopNode = pSimGeom->GetCurrentNode();
-          // We have to multiply together matrices at each depth to convert local coordinates to the world volume
-          std::unique_ptr<TGeoHMatrix> pVolMatrix = std::make_unique<TGeoHMatrix>(*pTopNode->GetMatrix());
-          for (unsigned int d = 0; d < nodePaths.at(n).size(); ++d)
-          {
-              pSimGeom->CdDown(nodePaths.at(n).at(d));
-              const TGeoNode *pNode = pSimGeom->GetCurrentNode();
-              std::unique_ptr<TGeoHMatrix> pMatrix = std::make_unique<TGeoHMatrix>(*pNode->GetMatrix());
-              pVolMatrix->Multiply(pMatrix.get());
-          }
-          const TGeoNode *pTargetNode = pSimGeom->GetCurrentNode();
-  
-          MakePandoraTPC(pPrimaryPandora,parameters,geom,pVolMatrix,pTargetNode,n);
-
-          for (const unsigned int &daughter : nodePaths.at(n))
-          {
-              (void)daughter;
-              pSimGeom->CdUp();
-          }
-    
-      }
-      std::cout << "Created " << nodePaths.size() << " TPCs" << std::endl;
-//    }
-/*    else
+    // Navigate to each node and use them to build the pandora geometry
+    for (unsigned int n = 0; n < nodePaths.size(); ++n)
     {
-        // Start by looking at the top level volume and move down to the one we need
-        std::string name;
-        const std::string neededNode(parameters.m_geometryVolName);
-        TGeoNode *pCurrentNode = pSimGeom->GetCurrentNode();
-        bool foundNode(false);
-
-        // Initialise volume matrix using the master (top) volume.
-        // This is updated as we go down the volume hierarchy
-        std::unique_ptr<TGeoHMatrix> pVolMatrix = std::make_unique<TGeoHMatrix>(*pCurrentNode->GetMatrix());
-
-        // Maximum number of nodes to search through, same as default TGeoManager counting node limit
-        const int maxNodes(10000);
-        int iNode(0);
-        while (foundNode == false && iNode < maxNodes)
+        const TGeoNode *pTopNode = pSimGeom->GetCurrentNode();
+        // We have to multiply together matrices at each depth to convert local coordinates to the world volume
+        std::unique_ptr<TGeoHMatrix> pVolMatrix = std::make_unique<TGeoHMatrix>(*pTopNode->GetMatrix());
+        for (unsigned int d = 0; d < nodePaths.at(n).size(); ++d)
         {
-            pCurrentNode = pSimGeom->GetCurrentNode();
-            iNode++;
-            name = pCurrentNode->GetName();
-            std::unique_ptr<TGeoHMatrix> pCurrentMatrix = std::make_unique<TGeoHMatrix>(*pCurrentNode->GetMatrix());
-            pVolMatrix->Multiply(pCurrentMatrix.get());
-
-            int i1 = 0;
-            for (int i = 0; i < pCurrentNode->GetNdaughters(); i++)
-            {
-
-                pSimGeom->CdDown(i1);
-                TGeoNode *pNode = pSimGeom->GetCurrentNode();
-                name = pNode->GetName();
-                std::unique_ptr<TGeoHMatrix> pMatrix = std::make_unique<TGeoHMatrix>(*pNode->GetMatrix());
-
-                if (name == neededNode)
-                {
-                    foundNode = true;
-                    pVolMatrix->Multiply(pMatrix.get());
-                    break;
-                }
-                else if (i + 1 != pCurrentNode->GetNdaughters())
-                {
-                    pSimGeom->CdUp();
-                    i1++;
-                }
-            }
-
-            if (foundNode)
-                break;
+            pSimGeom->CdDown(nodePaths.at(n).at(d));
+            const TGeoNode *pNode = pSimGeom->GetCurrentNode();
+            std::unique_ptr<TGeoHMatrix> pMatrix = std::make_unique<TGeoHMatrix>(*pNode->GetMatrix());
+            pVolMatrix->Multiply(pMatrix.get());
         }
+        const TGeoNode *pTargetNode = pSimGeom->GetCurrentNode();
+  
+        MakePandoraTPC(pPrimaryPandora,parameters,geom,pVolMatrix,pTargetNode,n);
 
-        if (!foundNode)
+        for (const unsigned int &daughter : nodePaths.at(n))
         {
-            std::cout << "Could not find the required placement geometry volume " << neededNode << std::endl;
-            return;
+            (void)daughter;
+            pSimGeom->CdUp();
         }
-
-        // The current node should now be the placement volume we need to set the geometry parameters
-        pCurrentNode = pSimGeom->GetCurrentNode();
-        name = pCurrentNode->GetName();
-        std::cout << "Current Node: " << name << std::endl;
-        std::cout << "Current N daughters: " << pCurrentNode->GetVolume()->GetNdaughters() << std::endl;
-        std::cout << "Current transformation matrix:" << std::endl;
-        pVolMatrix->Print();
-
-        MakePandoraTPC(pPrimaryPandora,parameters,geom,pVolMatrix,pCurrentNode,0);
-
-    }*/
+    
+    }
+    std::cout << "Created " << nodePaths.size() << " TPCs" << std::endl;
+    
     fileSource->Close();
 }
 
@@ -617,6 +549,8 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
 
     std::cout << "Start event is " << startEvt << " and end event is " << endEvt - 1 << std::endl;
 
+    const float y_offset{22.0};
+
     for (int iEvt = startEvt; iEvt < endEvt; iEvt++)
     {
         if (parameters.m_shouldDisplayEventNumber)
@@ -626,11 +560,10 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
 
         int hitCounter(0);
 
-
         // Loop over the space points and make them into caloHits
         for (size_t isp = 0; isp < x->size(); ++isp)
         {
-            const pandora::CartesianVector voxelPos((*x)[isp], (*y)[isp], (*z)[isp]);
+            const pandora::CartesianVector voxelPos((*x)[isp], (*y)[isp] - y_offset, (*z)[isp]);
             const float voxelE = (*charge)[isp];
             const float MipE = 0.00075;
             const float voxelMipEquivalentE = voxelE / MipE;
