@@ -73,12 +73,21 @@ inline LArNDTPCSimple::LArNDTPCSimple(const double x_min, const double x_max, co
 
 inline bool LArNDTPCSimple::IsInTPC(const pandora::CartesianVector &pos) const
 {
-    const double epsilon = 1.0e-3;
-    if (pos.GetX() <= (m_x_min - epsilon) || pos.GetX() >= (m_x_max + epsilon))
+    const double epsilon{1.0e-3};
+    const double m_x_min_eps{m_x_min - epsilon};
+    const double m_x_max_eps{m_x_max + epsilon};
+    const double m_y_min_eps{m_y_min - epsilon};
+    const double m_y_max_eps{m_y_max + epsilon};
+    const double m_z_min_eps{m_z_min - epsilon};
+    const double m_z_max_eps{m_z_max + epsilon};
+    const double x{pos.GetX()};
+    const double y{pos.GetY()};
+    const double z{pos.GetZ()};
+    if (x <= m_x_min_eps || x >= m_x_max_eps)
         return false;
-    if (pos.GetY() <= (m_y_min - epsilon) || pos.GetY() >= (m_y_max + epsilon))
+    if (y <= m_y_min_eps || y >= m_y_max_eps)
         return false;
-    if (pos.GetZ() <= (m_z_min - epsilon) || pos.GetZ() >= (m_z_max + epsilon))
+    if (z <= m_z_min_eps || z >= m_z_max_eps)
         return false;
 
     return true;
