@@ -10,9 +10,12 @@
 
 #include "Pandora/PandoraInputTypes.h"
 #include "TG4Event.h"
+#include "TGeoManager.h"
+#include "TGeoNode.h"
 
 #include "LArGrid.h"
 #include "LArHitInfo.h"
+#include "LArNDGeomSimple.h"
 #include "LArSED.h"
 #include "LArVoxel.h"
 
@@ -44,7 +47,7 @@ public:
     {
         EDepSim = 0,
         SED = 1,
-        SP  = 2
+        SP = 2
     };
 
     LArNDFormat m_dataFormat; ///< The expected input data format (EDepSim rooTracker or SED ROOT)
@@ -60,6 +63,7 @@ public:
 
     std::string m_geometryVolName;  ///< The name of the Geant4 detector placement volume
     std::string m_sensitiveDetName; ///< The name of the Geant4 sensitive hit detector
+    bool m_useModularGeometry;      ///< Include each TPC as a separate volume in the geometry
 
     int m_nEventsToProcess;          ///< The number of events to process (default all
                                      ///< events in file)
@@ -102,6 +106,7 @@ inline Parameters::Parameters() :
     m_geomManagerName("EDepSimGeometry"),
     m_geometryVolName("volArgonCubeDetector_PV_0"),
     m_sensitiveDetName("ArgonCube"),
+    m_useModularGeometry(false),
     m_nEventsToProcess(-1),
     m_shouldDisplayEventNumber(false),
     m_shouldRunAllHitsCosmicReco(true),
@@ -131,8 +136,37 @@ inline Parameters::Parameters() :
  *
  *  @param  parameters The application parameters
  *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void CreateGeometry(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
+void CreateGeometry(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, LArNDGeomSimple &geom);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Recursively search for volumes with the target name
+ *
+ *  @param  pSimGeom pointer to the input geometry
+ *  @param  targetName the volume name that we want to find
+ *  @param  nodeVector daughter indices to recreate the path to the target nodes
+ *  @param  currentPath path to the current position in the geometry
+ */
+void RecursiveGeometrySearch(TGeoManager *pSimGeom, const std::string &targetName, std::vector<std::vector<unsigned int>> &nodePaths,
+    std::vector<unsigned int> &currentPath);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Create and register a tpc in pandora
+ *
+ *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  parameters The application parameters
+ *  @param  geom Simple representation of the geometry for assigning TPC numbers
+ *  @param  pVolMatrix matrix required to convert TPC coordinates to world
+ *  @param  targetNode pointer to the TPC geometry node
+ *  @param  tpcNumber the number for the TPC volume
+ */
+void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, LArNDGeomSimple &geom,
+    const std::unique_ptr<TGeoHMatrix> &pVolMatrix, const TGeoNode *targetNode, const unsigned int tpcNumber);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -141,8 +175,9 @@ void CreateGeometry(const Parameters &parameters, const pandora::Pandora *const 
  *
  *  @param  parameters The application parameters
  *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
+void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -151,8 +186,9 @@ void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const p
  *
  *  @param  parameters The application parameters
  *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void ProcessEDepSimEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
+void ProcessEDepSimEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -161,8 +197,9 @@ void ProcessEDepSimEvents(const Parameters &parameters, const pandora::Pandora *
  *
  *  @param  parameters The application parameters
  *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
-void ProcessSEDEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
+void ProcessSEDEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -224,15 +261,40 @@ std::string GetNuanceReaction(const int ccnc, const int mode);
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 /**
+ *  @brief  Create the LArGrid for making voxels using the geometry
+ *
+ *  @param  pPrimaryPandora address of the primary pandora instance
+ *  @param  parameters the application parameters
+ *
+ *  @return the LArGrid object
+ */
+LArGrid MakeVoxelisationGrid(const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Create the LArGrid for making voxels using the geometry
+ *
+ *  @param  geom simple representation of the geometry
+ *  @param  parameters the application parameters
+ *
+ *  @return the LArGrid object
+ */
+LArGrid MakeVoxelisationGrid(const LArNDGeomSimple &geom, const Parameters &parameters);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
  *  @brief  Make voxels from a given Geant4 energy deposition step
  *
  *  @param  hitInfo Information about the hit
  *  @param  grid Voxelisation grid
  *  @param  parameters The application parameters
+ *  @param  simple geometry information
  *
  *  @return vector of LArVoxels
  */
-LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters);
+LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Parameters &parameters, const LArNDGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -244,6 +306,55 @@ LArVoxelList MakeVoxels(const LArHitInfo &hitInfo, const LArGrid &grid, const Pa
  *  @return vector of merged LArVoxels
  */
 LArVoxelList MergeSameVoxels(const LArVoxelList &voxelList);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Combine energies for voxel projections with the same (wire,drift) position
+ *
+ *  @param  hits The unmerged list (vector) of voxel projections
+ *
+ *  @return vector of merged LArVoxelProjections
+ */
+LArVoxelProjectionList MergeSameProjections(const LArVoxelProjectionList &hits);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Create the pandora calohits from voxels
+ *
+ *  @param  voxels the voxels to use to create the hits
+ *  @param  mcEnergyMap map of mc particle to its energy
+ *  @param  pPrimaryPandora address of the primary pandora instance
+ *  @param  parameters the application parameters
+ *  @param  hitCounter reference to keep track of the number of hits
+ */
+void MakeCaloHitsFromVoxels(const LArVoxelList &voxels, const MCParticleEnergyMap &mcEnergyMap,
+    const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters, int &hitCounter);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Return the fraction of the MC particle energy in this voxel
+ *
+ *  @param  mcEnergyMap map of true particle to the energy
+ *  @param  voxelE energy deposited in the voxel
+ *  @param  trackID true id of the track that deposited the energy
+ *
+ *  @return fraction of true particle energy in the voxel as a float
+ */
+float GetMCEnergyFraction(const MCParticleEnergyMap &mcEnergyMap, const float voxelE, const int trackID);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  construct a generic set of calohit parameters
+ *
+ *  @param  voxelWidth size of the voxelisation used
+ *
+ *  @return LArCaloHitParameters object
+ */
+lar_content::LArCaloHitParameters MakeDefaultCaloHitParams(float voxelWidth);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
