@@ -194,9 +194,9 @@ inline void LArNDGeomSimple::GetSurroundingBox(double &min_x, double &max_x, dou
     min_x = std::numeric_limits<double>::max();
     min_y = std::numeric_limits<double>::max();
     min_z = std::numeric_limits<double>::max();
-    max_x = std::numeric_limits<double>::min();
-    max_y = std::numeric_limits<double>::min();
-    max_z = std::numeric_limits<double>::min();
+    max_x = -std::numeric_limits<double>::max();
+    max_y = -std::numeric_limits<double>::max();
+    max_z = -std::numeric_limits<double>::max();
 
     for (auto const &tpc : m_TPCs)
     {
