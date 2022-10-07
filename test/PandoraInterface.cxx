@@ -265,7 +265,7 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
     }
     else if (parameters.m_dataFormat == Parameters::LArNDFormat::SP)
     {
-        ProcessSPEvents(parameters, pPrimaryPandora);
+        ProcessSPEvents(parameters, pPrimaryPandora, geom);
     }
     else
     {
@@ -492,7 +492,7 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora)
+void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom)
 {
 
     TFile *fileSource = TFile::Open(parameters.m_inputFileName.c_str(), "READ");
@@ -565,7 +565,7 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
             const float voxelE = (*charge)[isp];
             const float MipE = 0.00075;
             const float voxelMipEquivalentE = voxelE / MipE;
-
+            const int tpcID(geom.GetTPCNumber(voxelPos));
             lar_content::LArCaloHitParameters caloHitParameters;
             caloHitParameters.m_positionVector = voxelPos;
             caloHitParameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
@@ -587,7 +587,7 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
             caloHitParameters.m_layer = 0;
             caloHitParameters.m_isInOuterSamplingLayer = false;
             caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
-            caloHitParameters.m_larTPCVolumeId = 0;
+            caloHitParameters.m_larTPCVolumeId = tpcID < 0 ? 0 : tpcID;
             caloHitParameters.m_daughterVolumeId = 0;
 
             if (parameters.m_use3D)
@@ -1546,6 +1546,8 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
     std::string formatOption("EDepSim");
     std::string geomFileName("");
     std::string inputTreeName("");
+    std::string geomVolName("");
+    std::string sensDetName("");
 
     while ((cOpt = getopt(argc, argv, "r:i:e:k:f:g:t:v:d:n:s:j:w:m:c:MpNh")) != -1)
     {
@@ -1573,10 +1575,10 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
                 parameters.m_geomManagerName = optarg;
                 break;
             case 'v':
-                parameters.m_geometryVolName = optarg;
+                geomVolName = optarg;
                 break;
             case 'd':
-                parameters.m_sensitiveDetName = optarg;
+                sensDetName = optarg;
                 break;
             case 'M':
                 parameters.m_useModularGeometry = true;
@@ -1612,7 +1614,7 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
     }
 
     ProcessViewOption(viewOption, parameters);
-    ProcessFormatOption(formatOption, inputTreeName, geomFileName, parameters);
+    ProcessFormatOption(formatOption, inputTreeName, geomFileName, geomVolName, sensDetName, parameters);
     return ProcessRecoOption(recoOption, parameters);
 }
 
@@ -1778,7 +1780,8 @@ bool ProcessRecoOption(const std::string &recoOption, Parameters &parameters)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void ProcessFormatOption(const std::string &formatOption, const std::string &inputTreeName, const std::string &geomFileName, Parameters &parameters)
+void ProcessFormatOption(const std::string &formatOption, const std::string &inputTreeName, const std::string &geomFileName,
+    const std::string &geomVolName, const std::string &sensDetName, Parameters &parameters)
 {
     std::string chosenFormatOption(formatOption);
     std::transform(chosenFormatOption.begin(), chosenFormatOption.end(), chosenFormatOption.begin(), ::tolower);
@@ -1794,7 +1797,11 @@ void ProcessFormatOption(const std::string &formatOption, const std::string &inp
         // All energies are already in GeV, so don't rescale
         parameters.m_energyScale = 1.0f;
         // Set expected input TTree name for SED data
-        parameters.m_inputTreeName = "simdump/ndsim";
+        parameters.m_inputTreeName = inputTreeName.empty() ? "simdump/ndsim" : inputTreeName;
+        // Set geometry volume name if not set
+        parameters.m_geometryVolName = geomVolName.empty() ? "volArgonCubeDetector_0" : geomVolName;
+        // Set the sensitive detector name if not set
+        parameters.m_sensitiveDetName = sensDetName.empty() ? "volTPCActive" : sensDetName;
     }
     else if (chosenFormatOption == "sp")
     {
@@ -1807,7 +1814,11 @@ void ProcessFormatOption(const std::string &formatOption, const std::string &inp
         // All energies are already in GeV, so don't rescale
         parameters.m_energyScale = 1.0f;
         // Set expected input TTree name for space point data
-        parameters.m_inputTreeName = "spdump/sp";
+        parameters.m_inputTreeName = inputTreeName.empty() ? "spdump/sp" : inputTreeName;
+        // Set geometry volume name if not set
+        parameters.m_geometryVolName = geomVolName.empty() ? "volGrosslabor_0" : geomVolName;
+        // Set the sensitive detector name if not set
+        parameters.m_sensitiveDetName = sensDetName.empty() ? "volTPCActive" : sensDetName;
     }
     else
     {
@@ -1819,11 +1830,13 @@ void ProcessFormatOption(const std::string &formatOption, const std::string &inp
         parameters.m_lengthScale = parameters.m_mm2cm;
         // All energies are in MeV, so we need to convert them to GeV
         parameters.m_energyScale = parameters.m_MeV2GeV;
+        // Set expected input TTree name for space point data
+        parameters.m_inputTreeName = inputTreeName.empty() ? "EDepSimEvents" : inputTreeName;
+        // Set geometry volume name if not set
+        parameters.m_geometryVolName = geomVolName.empty() ? "volArgonCubeDetector_PV_0" : geomVolName;
+        // Set the sensitive detector name if not set
+        parameters.m_sensitiveDetName = sensDetName.empty() ? "TPCActive" : sensDetName;
     }
-
-    // Default input tree name is "EDepSimEvents"
-    if (inputTreeName.size() > 0)
-        parameters.m_inputTreeName = inputTreeName;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
