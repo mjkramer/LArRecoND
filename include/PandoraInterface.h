@@ -209,7 +209,7 @@ void ProcessSEDEvents(const Parameters &parameters, const pandora::Pandora *cons
  *  @param  parameters The application parameters
  *  @param  pPrimaryPandora The address of the primary pandora instance
  */
-void ProcessSPEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
+void ProcessSPEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 

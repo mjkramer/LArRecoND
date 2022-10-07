@@ -265,7 +265,7 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
     }
     else if (parameters.m_dataFormat == Parameters::LArNDFormat::SP)
     {
-        ProcessSPEvents(parameters, pPrimaryPandora);
+        ProcessSPEvents(parameters, pPrimaryPandora, geom);
     }
     else
     {
@@ -492,7 +492,7 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora)
+void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom)
 {
 
     TFile *fileSource = TFile::Open(parameters.m_inputFileName.c_str(), "READ");
@@ -565,7 +565,7 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
             const float voxelE = (*charge)[isp];
             const float MipE = 0.00075;
             const float voxelMipEquivalentE = voxelE / MipE;
-
+            const int tpcID(geom.GetTPCNumber(voxelPos));
             lar_content::LArCaloHitParameters caloHitParameters;
             caloHitParameters.m_positionVector = voxelPos;
             caloHitParameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
@@ -587,7 +587,7 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
             caloHitParameters.m_layer = 0;
             caloHitParameters.m_isInOuterSamplingLayer = false;
             caloHitParameters.m_pParentAddress = (void *)(static_cast<uintptr_t>(++hitCounter));
-            caloHitParameters.m_larTPCVolumeId = 0;
+            caloHitParameters.m_larTPCVolumeId = tpcID < 0 ? 0 : tpcID;
             caloHitParameters.m_daughterVolumeId = 0;
 
             if (parameters.m_use3D)
