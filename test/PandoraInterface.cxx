@@ -32,6 +32,10 @@
 #include "larpandoracontent/LArPlugins/LArPseudoLayerPlugin.h"
 #include "larpandoracontent/LArPlugins/LArRotationalTransformationPlugin.h"
 
+#ifdef LIBTORCH_DL
+#include "larpandoradlcontent/LArDLContent.h"
+#endif
+
 #include "LArNDGeomSimple.h"
 #include "LArRay.h"
 #include "PandoraInterface.h"
@@ -73,6 +77,9 @@ int main(int argc, char *argv[])
             throw StatusCodeException(STATUS_CODE_FAILURE);
 
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, LArContent::RegisterAlgorithms(*pPrimaryPandora));
+#ifdef LIBTORCH_DL
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, LArDLContent::RegisterAlgorithms(*pPrimaryPandora));
+#endif
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, LArContent::RegisterBasicPlugins(*pPrimaryPandora));
 
         MultiPandoraApi::AddPrimaryPandoraInstance(pPrimaryPandora);
@@ -1853,6 +1860,12 @@ void ProcessExternalParameters(const Parameters &parameters, const Pandora *cons
     pEventSteeringParameters->m_shouldPerformSliceId = parameters.m_shouldPerformSliceId;
     pEventSteeringParameters->m_printOverallRecoStatus = parameters.m_printOverallRecoStatus;
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::SetExternalParameters(*pPandora, "LArMaster", pEventSteeringParameters));
+
+#ifdef LIBTORCH_DL
+    auto *const pEventSettingsParametersCopy = new lar_content::MasterAlgorithm::ExternalSteeringParameters(*pEventSteeringParameters);
+    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+        pandora::ExternallyConfiguredAlgorithm::SetExternalParameters(*pPandora, "LArDLMaster", pEventSettingsParametersCopy));
+#endif
 }
 
 } // namespace lar_nd_reco
