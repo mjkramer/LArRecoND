@@ -84,7 +84,7 @@ cd $MY_TEST_AREA
 
 These instructions use the information from https://github.com/PandoraPFA/Documentation
 
-Copy the following to a build script named DLVertexBuild.sh (for example):
+Copy the following to a build script named `DLVertexBuild.sh` (for example):
 
 ```Shell
 # PandoraPFA (Basic cmake setup)
@@ -171,6 +171,16 @@ Run the build script with `source DLVertexBuild.sh`. If there are any errors,
 carefully check the cmake options and environment variables etc.
 
 **Run LArRecoND with DL vertexing**
+
+Make sure your shell session sets the DUNE and Pandora working environment:
+
+```Shell
+source envDUNE.sh
+cd $MY_TEST_AREA/edep-sim
+source setup.sh
+export LD_LIBRARY_PATH=${EDEP_ROOT}/install/lib:$LD_LIBRARY_PATH
+cd $MY_TEST_AREA
+```
 
 Use the following command to run LArRecoND with DL vertexing for a
 single interaction muon-neutrino edep-sim event inside the ArgonCube geometry,
