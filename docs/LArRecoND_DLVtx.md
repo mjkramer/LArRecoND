@@ -187,6 +187,7 @@ single interaction muon-neutrino edep-sim event inside the ArgonCube geometry,
 storing the MC and reco information using hierarchy tools:
 
 ```Shell
+cd $MY_TEST_AREA/LArRecoND
 ./bin/PandoraInterface -i settings/PandoraSettings_LArRecoND_DLHierarchy.xml -j LArTPC -N -s 1 -n 1 \
 -d ArgonCube -r AllHitsNu -e /dune/data2/users/jback/EDepSimFiles/numu_all/LArEDepSim_numu_all_1.root
 ```
