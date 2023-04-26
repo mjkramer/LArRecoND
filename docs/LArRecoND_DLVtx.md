@@ -33,13 +33,13 @@ setup jobsub_client
 
 # Set tags for Pandora packages
 # Use "git fetch --tags" to update all available tags
-export PANDORA_PFA_VERSION=v04-02-00
+export PANDORA_PFA_VERSION=v04-03-03
 export PANDORA_SDK_VERSION=v03-04-01
 export PANDORA_MONITORING_VERSION=v03-05-00
-export PANDORA_LAR_CONTENT_VERSION=v04_02_00
+export PANDORA_LAR_CONTENT_VERSION=v04_03_03
 export PANDORA_LC_CONTENT_VERSION=v03-01-06
 export PANDORA_EXAMPLE_CONTENT_VERSION=v03-01-00
-export PANDORA_LAR_RECO_VERSION=v04-02-00
+export PANDORA_LAR_RECO_VERSION=v04-03-03
 export PANDORA_LC_RECO_VERSION=v03-01-05
 
 # Set main working directory by an optional argument
