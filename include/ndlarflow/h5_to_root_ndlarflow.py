@@ -1,4 +1,7 @@
 #code generates root file from evd file by Salvatore Davide Porzio and Saba Parsa
+# python h5_to_root_ndlarflow.py type filename
+# type is a boolean variable of 1 (merged)  or 0 (unmerged) hits
+# filename is an argument of the filename (does not need quotations) 
 # Adapted for 2x2 conversion for Pandora by Richard Diurba
 # Requires standard ROOT, h5py, and numpy 
 # Also requires h5flow, a package by Peter Madigan (https://github.com/peter-madigan/h5flow)
