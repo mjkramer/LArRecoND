@@ -1,8 +1,9 @@
-#code generates root file from evd file by Salvatore Davide Porzio and Saba Parsa
-# python h5_to_root_ndlarflow.py type filename
-# type is a boolean variable of 1 (merged)  or 0 (unmerged) hits
-# filename is an argument of the filename (does not need quotations) 
 # Adapted for 2x2 conversion for Pandora by Richard Diurba
+# Code based on Bern Module data root file conversion by Salvatore Davide Porzio and Saba Parsa
+# python h5_to_root_ndlarflow.py type filename data
+# type is a boolean variable of 1 (merged)  or 0 (unmerged) hits, default is merged hits
+# filename is an argument of the filename (does not need quotations)
+# data is to toggle the MC information for simulation (0) and data (1), default is simulation
 # Requires standard ROOT, h5py, and numpy 
 # Also requires h5flow, a package by Peter Madigan (https://github.com/peter-madigan/h5flow)
 #To install, git clone into a directory and then run pip install .
@@ -29,10 +30,14 @@ def main(argv=None):
     if (len(sys.argv)>2):
         if (sys.argv[2]!=None):
             files=[str(sys.argv[2])]
-    useMergedHits=False
+    useMergedHits=True
     if (len(sys.argv)>1):
-        if( int(sys.argv[1])==1):
-            useMergedHits=True
+        if( int(sys.argv[1])==0):
+            useMergedHits=False
+    useData=False
+    if (len(sys.argv)>3):
+        if (int(sys.argv[3]!==1):
+            useData=True
     fnum=0;
     # load files in list
     for fname in files:
@@ -46,9 +51,9 @@ def main(argv=None):
 
         # fill tree
 
-        outFileName = fname[:-3] + 'Testunmergedhits.root'
+        outFileName = fname[:-3] + 'Unmergedhits.root'
         if (useMergedHits):
-            outFileName = fname[:-3] + 'TestMergedhits.root'
+            outFileName = fname[:-3] + 'Mergedhits.root'
         #print('output file : ', '' + outFileName )
 
         output_file = ROOT.TFile((outFileName), "RECREATE")
@@ -212,36 +217,37 @@ def main(argv=None):
                 event_calib_final_hits=flow_out["charge/events/","charge/calib_prompt_hits", events["id"][ev_index]]
             else:
                 event_calib_final_hits=flow_out["charge/events/","charge/calib_final_hits", events["id"][ev_index]]
-  
-            # find spillID to use for truth info
-            spillArray=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/segments",event_calib_prompt_hits[0]["id"]]["event_id"][0][0][0]
-            # find all truth info and fill it using a complicated vector 
-            allTrajectories,allVertices=find_all_truth_in_spill(spillArray, flow_out)
-            [nuID.push_back(int(i)) for i in allVertices[0]]
-            [nue.push_back(i) for i in allVertices[1]]
-            [nuPDG.push_back(int(i)) for i in allVertices[2]]
-            [nuvtxx.push_back(i) for i in allVertices[3]]
-            [nuvtxy.push_back(i) for i in allVertices[4]]
-            [nuvtxz.push_back(i) for i in allVertices[5]]
-            [nupx.push_back(i) for i in allVertices[6]]
-            [nupy.push_back(i) for i in allVertices[7]]
-            [nupz.push_back(i) for i in allVertices[8]]
-            [mode.push_back(i) for i in allVertices[9]]
-            [ccnc.push_back(i) for i in allVertices[10]]
-            [mcp_mother.push_back(int(i)) for i in allTrajectories[-1]]
-            [mcp_startx.push_back(i) for i in allTrajectories[0]]
-            [mcp_starty.push_back(i) for i in allTrajectories[1]]
-            [mcp_startz.push_back(i) for i in allTrajectories[2]]
-            [mcp_endx.push_back(i) for i in allTrajectories[3]]
-            [mcp_endy.push_back(i) for i in allTrajectories[4]]
-            [mcp_endz.push_back(i) for i in allTrajectories[5]]
-            [mcp_px.push_back(i) for i in allTrajectories[6]]
-            [mcp_py.push_back(i) for i in allTrajectories[7]]
-            [mcp_pz.push_back(i) for i in allTrajectories[8]]
-            [mcp_nuid.push_back(int(i)) for i in allTrajectories[-2]]
-            [mcp_pdg.push_back(int(i)) for i in allTrajectories[-3]]
-            [mcp_id.push_back(int(i)) for i in allTrajectories[-4]]
-            [mcp_energy.push_back(i) for i in allTrajectories[-5]] 
+            
+            if (!useData): 
+                # find spillID to use for truth info
+                spillArray=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/segments",event_calib_prompt_hits[0]["id"]]["event_id"][0][0][0]
+                # find all truth info and fill it using a complicated vector 
+                allTrajectories,allVertices=find_all_truth_in_spill(spillArray, flow_out)
+                [nuID.push_back(int(i)) for i in allVertices[0]]
+                [nue.push_back(i) for i in allVertices[1]]
+                [nuPDG.push_back(int(i)) for i in allVertices[2]]
+                [nuvtxx.push_back(i) for i in allVertices[3]]
+                [nuvtxy.push_back(i) for i in allVertices[4]]
+                [nuvtxz.push_back(i) for i in allVertices[5]]
+                [nupx.push_back(i) for i in allVertices[6]]
+                [nupy.push_back(i) for i in allVertices[7]]
+                [nupz.push_back(i) for i in allVertices[8]]
+                [mode.push_back(i) for i in allVertices[9]]
+                [ccnc.push_back(i) for i in allVertices[10]]
+                [mcp_mother.push_back(int(i)) for i in allTrajectories[-1]]
+                [mcp_startx.push_back(i) for i in allTrajectories[0]]
+                [mcp_starty.push_back(i) for i in allTrajectories[1]]
+                [mcp_startz.push_back(i) for i in allTrajectories[2]]
+                [mcp_endx.push_back(i) for i in allTrajectories[3]]
+                [mcp_endy.push_back(i) for i in allTrajectories[4]]
+                [mcp_endz.push_back(i) for i in allTrajectories[5]]
+                [mcp_px.push_back(i) for i in allTrajectories[6]]
+                [mcp_py.push_back(i) for i in allTrajectories[7]]
+                [mcp_pz.push_back(i) for i in allTrajectories[8]]
+                [mcp_nuid.push_back(int(i)) for i in allTrajectories[-2]]
+                [mcp_pdg.push_back(int(i)) for i in allTrajectories[-3]]
+                [mcp_id.push_back(int(i)) for i in allTrajectories[-4]]
+                [mcp_energy.push_back(i) for i in allTrajectories[-5]] 
             # fill event info
             eventID[0]           = event['id'] 
             event_start_t[0] =int(event["ts_start"])
@@ -271,23 +277,24 @@ def main(argv=None):
 
                 hit_num=hits_id[hitID]
                 contr_info=[]
-                # save 
-                if (useMergedHits==False):
-                    contr_info=find_tracks_in_packet(hit_num, flow_out)
-                    [packetFrac.push_back(i) for i in contr_info[0]]
-                    #[trackIndex.push_back(int(i)) for i in contr_info[1]]
-                    [trackID.push_back(int(i)) for i in contr_info[2]]
-                    [particleID.push_back(int(i)) for i in contr_info[4]]
-                    #[particleIndex.push_back(int(i)) for i in contr_info[3]]
-                    [pdgHit.push_back(int(i)) for i in contr_info[5]]
-                else:
-                    contr_info=find_tracks_in_calib_final_hits(hit_num,flow_out)
-                    [packetFrac.push_back(i) for i in contr_info[0]]
-                    #[trackIndex.push_back(int(i)) for i in contr_info[1]]
-                    [trackID.push_back(int(i)) for i in contr_info[2]]
-                    [particleID.push_back(int(i)) for i in contr_info[4]]
-                    #[particleIndex.push_back(int(i)) for i in contr_info[3]]
-                    [pdgHit.push_back(int(i)) for i in contr_info[5]]
+                if (!useData):              
+                    # save 
+                    if (useMergedHits==False):
+                        contr_info=find_tracks_in_packet(hit_num, flow_out)
+                        [packetFrac.push_back(i) for i in contr_info[0]]
+                        #[trackIndex.push_back(int(i)) for i in contr_info[1]]
+                        [trackID.push_back(int(i)) for i in contr_info[2]]
+                        [particleID.push_back(int(i)) for i in contr_info[4]]
+                        #[particleIndex.push_back(int(i)) for i in contr_info[3]]
+                        [pdgHit.push_back(int(i)) for i in contr_info[5]]
+                    else:
+                        contr_info=find_tracks_in_calib_final_hits(hit_num,flow_out)
+                        [packetFrac.push_back(i) for i in contr_info[0]]
+                        #[trackIndex.push_back(int(i)) for i in contr_info[1]]
+                        [trackID.push_back(int(i)) for i in contr_info[2]]
+                        [particleID.push_back(int(i)) for i in contr_info[4]]
+                        #[particleIndex.push_back(int(i)) for i in contr_info[3]]
+                        [pdgHit.push_back(int(i)) for i in contr_info[5]]
                 # save hit information
                 z.push_back(hits_z[hitID])
                 y.push_back(hits_y[hitID])
