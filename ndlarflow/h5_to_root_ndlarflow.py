@@ -19,6 +19,9 @@ import os
 import ROOT
 from ROOT import  TFile
 import sys
+trueXOffset=0
+trueYOffset=42+268
+trueZOffset=-1300
 def main(argv=None):
     
     # set input files to be loaded
@@ -36,7 +39,7 @@ def main(argv=None):
             useMergedHits=False
     useData=False
     if (len(sys.argv)>3):
-        if (int(sys.argv[3]!==1):
+        if (int(sys.argv[3])==1):
             useData=True
     fnum=0;
     # load files in list
@@ -218,7 +221,7 @@ def main(argv=None):
             else:
                 event_calib_final_hits=flow_out["charge/events/","charge/calib_final_hits", events["id"][ev_index]]
             
-            if (!useData): 
+            if (useData==False): 
                 # find spillID to use for truth info
                 spillArray=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/segments",event_calib_prompt_hits[0]["id"]]["event_id"][0][0][0]
                 # find all truth info and fill it using a complicated vector 
@@ -229,18 +232,18 @@ def main(argv=None):
                 [nuvtxx.push_back(i) for i in allVertices[3]]
                 [nuvtxy.push_back(i) for i in allVertices[4]]
                 [nuvtxz.push_back(i) for i in allVertices[5]]
-                [nupx.push_back(i) for i in allVertices[6]]
-                [nupy.push_back(i) for i in allVertices[7]]
-                [nupz.push_back(i) for i in allVertices[8]]
+                [nupx.push_back(i+trueXOffset) for i in allVertices[6]]
+                [nupy.push_back(i+trueYOffset) for i in allVertices[7]]
+                [nupz.push_back(i+trueZOffset) for i in allVertices[8]]
                 [mode.push_back(i) for i in allVertices[9]]
                 [ccnc.push_back(i) for i in allVertices[10]]
                 [mcp_mother.push_back(int(i)) for i in allTrajectories[-1]]
-                [mcp_startx.push_back(i) for i in allTrajectories[0]]
-                [mcp_starty.push_back(i) for i in allTrajectories[1]]
-                [mcp_startz.push_back(i) for i in allTrajectories[2]]
-                [mcp_endx.push_back(i) for i in allTrajectories[3]]
-                [mcp_endy.push_back(i) for i in allTrajectories[4]]
-                [mcp_endz.push_back(i) for i in allTrajectories[5]]
+                [mcp_startx.push_back(i+trueXOffset) for i in allTrajectories[0]]
+                [mcp_starty.push_back(i+trueYOffset) for i in allTrajectories[1]]
+                [mcp_startz.push_back(i+trueZOffset) for i in allTrajectories[2]]
+                [mcp_endx.push_back(i+trueXOffset) for i in allTrajectories[3]]
+                [mcp_endy.push_back(i+trueYOffset) for i in allTrajectories[4]]
+                [mcp_endz.push_back(i+trueZOffset) for i in allTrajectories[5]]
                 [mcp_px.push_back(i) for i in allTrajectories[6]]
                 [mcp_py.push_back(i) for i in allTrajectories[7]]
                 [mcp_pz.push_back(i) for i in allTrajectories[8]]
@@ -277,7 +280,7 @@ def main(argv=None):
 
                 hit_num=hits_id[hitID]
                 contr_info=[]
-                if (!useData):              
+                if (useData==False):              
                     # save 
                     if (useMergedHits==False):
                         contr_info=find_tracks_in_packet(hit_num, flow_out)
