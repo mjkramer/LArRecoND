@@ -19,9 +19,9 @@ import os
 import ROOT
 from ROOT import  TFile
 import sys
-trueXOffset=0
-trueYOffset=42+268
-trueZOffset=-1300
+trueXOffset=0 # Offsets if geometry changes
+trueYOffset=0#42+268
+trueZOffset=0#-1300
 def main(argv=None):
     
     # set input files to be loaded
@@ -229,12 +229,12 @@ def main(argv=None):
                 [nuID.push_back(int(i)) for i in allVertices[0]]
                 [nue.push_back(i) for i in allVertices[1]]
                 [nuPDG.push_back(int(i)) for i in allVertices[2]]
-                [nuvtxx.push_back(i) for i in allVertices[3]]
-                [nuvtxy.push_back(i) for i in allVertices[4]]
-                [nuvtxz.push_back(i) for i in allVertices[5]]
-                [nupx.push_back(i+trueXOffset) for i in allVertices[6]]
-                [nupy.push_back(i+trueYOffset) for i in allVertices[7]]
-                [nupz.push_back(i+trueZOffset) for i in allVertices[8]]
+                [nuvtxx.push_back(i+trueXOffset) for i in allVertices[3]]
+                [nuvtxy.push_back(i+trueYOffset) for i in allVertices[4]]
+                [nuvtxz.push_back(i+trueZOffset) for i in allVertices[5]]
+                [nupx.push_back(i) for i in allVertices[6]]
+                [nupy.push_back(i) for i in allVertices[7]]
+                [nupz.push_back(i) for i in allVertices[8]]
                 [mode.push_back(i) for i in allVertices[9]]
                 [ccnc.push_back(i) for i in allVertices[10]]
                 [mcp_mother.push_back(int(i)) for i in allTrajectories[-1]]
@@ -299,9 +299,9 @@ def main(argv=None):
                         #[particleIndex.push_back(int(i)) for i in contr_info[3]]
                         [pdgHit.push_back(int(i)) for i in contr_info[5]]
                 # save hit information
-                z.push_back(hits_z[hitID])
-                y.push_back(hits_y[hitID])
-                x.push_back(hits_x[hitID])
+                z.push_back(hits_z[hitID]+trueZOffset)
+                y.push_back(hits_y[hitID]+trueYOffset)
+                x.push_back(hits_x[hitID]+trueXOffset)
                 charge.push_back(hits_Q[hitID])
                 E.push_back(hits_E[hitID])
                 ts.push_back(hits_ts[hitID])
