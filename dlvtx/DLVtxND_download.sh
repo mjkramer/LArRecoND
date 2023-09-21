@@ -9,7 +9,7 @@ function download() {
 if [ -z $1 ]
 then
   echo "Error: Expected usage source download.sh <experiment>"
-  echo "   where experiment in [ dune sbnd uboone]"
+  echo "   where experiment is [ dune dunend sbnd uboone ]"
   return 1
 fi
 
