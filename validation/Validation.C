@@ -757,12 +757,36 @@ void FillTargetHistogramCollection(const std::string &histPrefix, const TargetRe
         targetHistogramCollection.m_hVtxDeltaR->GetYaxis()->SetTitle("Number of Events");
     }
 
+    if (!targetHistogramCollection.m_hVtxDeltaXY)
+    {
+	targetHistogramCollection.m_hVtxDeltaXY = new TH2F((histPrefix + "VtxDeltaXY").c_str(), "", 100, -5.0, 5.0, 100, -5.0, 5.0);
+	targetHistogramCollection.m_hVtxDeltaXY->GetXaxis()->SetTitle("Vertex #DeltaX [cm]");
+	targetHistogramCollection.m_hVtxDeltaXY->GetYaxis()->SetTitle("Vertex #DeltaY [cm]");
+    }
+
+    if (!targetHistogramCollection.m_hVtxDeltaZY)
+    {
+	targetHistogramCollection.m_hVtxDeltaZY = new TH2F((histPrefix + "VtxDeltaZY").c_str(), "", 100, -5.0, 5.0, 100, -5.0, 5.0);
+	targetHistogramCollection.m_hVtxDeltaZY->GetXaxis()->SetTitle("Vertex #DeltaZ [cm]");
+	targetHistogramCollection.m_hVtxDeltaZY->GetYaxis()->SetTitle("Vertex #DeltaY [cm]");
+    }
+
+    if (!targetHistogramCollection.m_hVtxDeltaZX)
+    {
+	targetHistogramCollection.m_hVtxDeltaZX = new TH2F((histPrefix + "VtxDeltaZX").c_str(), "", 100, -5.0, 5.0, 100, -5.0, 5.0);
+	targetHistogramCollection.m_hVtxDeltaZX->GetXaxis()->SetTitle("Vertex #DeltaZ [cm]");
+	targetHistogramCollection.m_hVtxDeltaZX->GetYaxis()->SetTitle("Vertex #DeltaX [cm]");
+    }
+
     targetHistogramCollection.m_hVtxDeltaX->Fill(targetResult.m_vertexOffset.m_x);
     targetHistogramCollection.m_hVtxDeltaY->Fill(targetResult.m_vertexOffset.m_y);
     targetHistogramCollection.m_hVtxDeltaZ->Fill(targetResult.m_vertexOffset.m_z);
     targetHistogramCollection.m_hVtxDeltaR->Fill(std::sqrt(targetResult.m_vertexOffset.m_x * targetResult.m_vertexOffset.m_x +
                                                            targetResult.m_vertexOffset.m_y * targetResult.m_vertexOffset.m_y +
                                                            targetResult.m_vertexOffset.m_z * targetResult.m_vertexOffset.m_z));
+    targetHistogramCollection.m_hVtxDeltaXY->Fill(targetResult.m_vertexOffset.m_x, targetResult.m_vertexOffset.m_y);
+    targetHistogramCollection.m_hVtxDeltaZY->Fill(targetResult.m_vertexOffset.m_z, targetResult.m_vertexOffset.m_y);
+    targetHistogramCollection.m_hVtxDeltaZX->Fill(targetResult.m_vertexOffset.m_z, targetResult.m_vertexOffset.m_x);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -923,6 +947,9 @@ void WriteHistogramCollections(const std::string &outputFile, const InteractionP
         targetHistogramCollection.m_hVtxDeltaY->Write();
         targetHistogramCollection.m_hVtxDeltaZ->Write();
         targetHistogramCollection.m_hVtxDeltaR->Write();
+        targetHistogramCollection.m_hVtxDeltaXY->Write();
+        targetHistogramCollection.m_hVtxDeltaZY->Write();
+        targetHistogramCollection.m_hVtxDeltaZX->Write();
     }
 
     outFile->Close();

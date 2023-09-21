@@ -351,11 +351,40 @@ void createPlots(const std::string& validFileName = "Validation.root",
     theCanvas->cd(4);
     TH1* rVtxHist = dynamic_cast<TH1*>(histFile->Get("ALL_INTERACTIONS_VtxDeltaR"));
     rVtxHist->GetYaxis()->SetTitleOffset(1.35);
-    FitCBFun(rVtxHist);
+    FitCBFun(rVtxHist, 0.3, 0.3);
     rVtxHist->Draw();
     gPad->Update();
 
     theCanvas->Print("allVtx.png");
+
+    // 2D VTX RESIDUALS
+    theCanvas->Clear();
+    theCanvas->Divide(2,2);
+    theCanvas->UseCurrentStyle();
+    theCanvas->Update();
+
+    theCanvas->cd(1);
+    TH1* xyVtxHist = dynamic_cast<TH1*>(histFile->Get("ALL_INTERACTIONS_VtxDeltaXY"));
+    xyVtxHist->GetYaxis()->SetTitleOffset(1.35);
+    xyVtxHist->Draw("colz");
+    gPad->SetLogz();
+    gPad->Update();
+
+    theCanvas->cd(2);
+    TH1* zyVtxHist = dynamic_cast<TH1*>(histFile->Get("ALL_INTERACTIONS_VtxDeltaZY"));
+    zyVtxHist->GetYaxis()->SetTitleOffset(1.35);
+    zyVtxHist->Draw("colz");
+    gPad->SetLogz();
+    gPad->Update();
+
+    theCanvas->cd(3);
+    TH1* zxVtxHist = dynamic_cast<TH1*>(histFile->Get("ALL_INTERACTIONS_VtxDeltaZX"));
+    zxVtxHist->GetYaxis()->SetTitleOffset(1.35);
+    zxVtxHist->Draw("colz");
+    gPad->SetLogz();
+    gPad->Update();
+
+    theCanvas->Print("vtx2D.png");
 
     delete theCanvas;
     
