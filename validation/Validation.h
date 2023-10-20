@@ -485,6 +485,7 @@ typedef std::map<InteractionType, TargetResultList> InteractionTargetResultMap;
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 class TH1F;
+class TH2F;
 
 /**
  *  @brief  TargetHistogramCollection class
@@ -501,6 +502,9 @@ public:
     TH1F *m_hVtxDeltaY; ///< The vtx delta y histogram
     TH1F *m_hVtxDeltaZ; ///< The vtx delta z histogram
     TH1F *m_hVtxDeltaR; ///< The vtx delta r histogram
+    TH2F *m_hVtxDeltaXY; ///< The vtx delta x-y 2D histogram
+    TH2F *m_hVtxDeltaZY; ///< The vtx delta z-y 2D histogram
+    TH2F *m_hVtxDeltaZX; ///< The vtx delta z-x 2D histogram
 };
 
 typedef std::map<InteractionType, TargetHistogramCollection> InteractionTargetHistogramMap;
