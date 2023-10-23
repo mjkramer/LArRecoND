@@ -547,6 +547,103 @@ def get_nuance_code(vertex_num,flow_out):
     if (mec):
         code=10
     return int(code),int(cc)
+def find_tracks_in_calib_final_hits_from_prompt_hits(hit_num, flow_out):
+    # code from Kevin Wood
+    #print("calib_final_hit at index", hit_num,':')
+    #print('     ',flow_out['charge/calib_final_hits/data'][hit_num])
+    
+    track_contr = []
+    total = 0.
+    #print(hit_num)
+    
+    
+    prompt_hits=flow_out["charge/calib_final_hits","charge/calib_prompt_hits",hit_num][0]
+    #print(prompt_hits)
+    #prompt_region = flow_out['/charge/calib_final_hits/ref/charge/calib_prompt_hits/ref_region'][hit_num]
+    #prompt_charge = [flow_out['charge/calib_prompt_hits/data'][prompt_hit_id]['Q'] for prompt_hit_id in range(prompt_region[0],prompt_region[1])]
+    
+    norm = 0.
+    #print("Packet numbers and associated charge hits for final hit ",hit_num,": ",packet_numbers,prompt_charge)
+    # Make an intermediate list of [hit charge, fractional contribution, track]
+    # *for prompt hits*. These will be used to calculate the merged hits
+    # fractional contributions for the tracks
+    #for it,packet in enumerate(packet_numbers):
+    #    print("Packet Type of numbers above: "+str(flow_out["charge/packets/data"][packet]["packet_type"]))
+    for hit  in prompt_hits:
+        #print(hit["id"],np.where(flow_out["charge/calib_prompt_hits/data"]["id"]==hit["id"])[0])
+        pack_track_contr = find_tracks_in_packet2(hit["id"],flow_out)
+        for t in pack_track_contr:
+            track_contr.append([hit["Q"],t[1],t[0],t[2],t[7]])
+            norm+=track_contr[-1][0]*track_contr[-1][1]
+            
+
+    # Determine merged hits fractional contributions and associate tracks by
+    # charge weighing the prompt hit contributions
+    track_contributions = []
+    for track in track_contr:
+        contr = track[0]*track[1]/norm
+        track_contributions.append([contr,track[2],track[3],t[4]])
+        
+    # merge unique track contributinos
+    track_dict = defaultdict(lambda:0)
+    for track in track_contributions:
+        track_dict[tuple(track[1])] += track[0]
+    #print(track_dict.values())         
+    return track_dict
+
+def find_tracks_in_packet2(hit_num, flow_out):
+    #print("packet at index", packet_num,':')
+    #print('     ',flow_out['charge/packets/data'][packet_num])
+    contrib=[]
+    track_contr = []
+    total = 0 
+    track_contr = []
+    trackIndex_tot=[]
+    segment_tot=[]
+    pdg_tot=[]
+    particleIndex_tot=[]
+    particle_tot=[]
+    vertex_tot=[]
+    vertexID_tot=[]
+    pdg_id=[]
+    total = 0.
+    tracks=[]
+    segmentID_tot=[]
+    trajFromHits=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/tracks",hit_num][0][0]
+    fracFromHits=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/packet_fraction",hit_num][0][0]
+    # Get out of this if no truth information exists
+    if len(fracFromHits)<1 or len(trajFromHits)<1:
+        return [[trajFromHits[0],-999,-999,-999,-999,-999,-999,-999]]
+    # find the fraction and trajectory information
+    for fracs in fracFromHits:
+        total += fracs
+        traj_index =0# flow_out['mc_truth/trajectories/ref/mc_truth/tracks/ref/'][track_index,0]       
+        interaction_index=0
+        contrib.append(fracs)
+        
+    for trajs in trajFromHits:
+        #track = flow_out['mc_truth/tracks/data'][track_index]
+        #print("Traj index ",track_index, "has segment: ", track)
+        seg = trajs["segment_id"]
+        pdg = trajs["pdgId"]
+        particleID = trajs["trackID"]
+        vertexID=trajs["vertexID"]
+        tracks.append(trajs)
+        #print(f'trackID {track_index}')
+        pdg_id.append(pdg)
+        particleIndex_tot.append(traj_index)
+        trackIndex_tot.append(-999)
+        particle_tot.append(particleID)
+        vertexID_tot.append(vertexID)
+        vertex_tot.append(interaction_index)
+        segmentID_tot.append(seg)
+    i=0
+    while i<len(trajFromHits):
+
+
+        track_contr.append([tracks[i],contrib[i],trackIndex_tot[i],segmentID_tot[i],0,particle_tot[i],vertexID_tot[i],pdg_id[i]])
+        i=i+1
+    return track_contr
 if __name__ == "__main__":
     main()
 
