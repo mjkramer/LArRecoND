@@ -1,8 +1,9 @@
-#code generates root file from evd file by Salvatore Davide Porzio and Saba Parsa
-# python h5_to_root_ndlarflow.py type filename
-# type is a boolean variable of 1 (merged)  or 0 (unmerged) hits
-# filename is an argument of the filename (does not need quotations) 
 # Adapted for 2x2 conversion for Pandora by Richard Diurba
+# Code based on Bern Module data root file conversion by Salvatore Davide Porzio and Saba Parsa
+# python h5_to_root_ndlarflow.py type filename data
+# type is a boolean variable of 1 (merged)  or 0 (unmerged) hits, default is merged hits
+# filename is an argument of the filename (does not need quotations)
+# data is to toggle the MC information for simulation (0) and data (1), default is simulation
 # Requires standard ROOT, h5py, and numpy 
 # Also requires h5flow, a package by Peter Madigan (https://github.com/peter-madigan/h5flow)
 #To install, git clone into a directory and then run pip install .
@@ -18,38 +19,28 @@ import os
 import ROOT
 from ROOT import  TFile
 import sys
+trueXOffset=0 # Offsets if geometry changes
+trueYOffset=0#42+268
+trueZOffset=0#-1300
 def main(argv=None):
     
     # set input files to be loaded
     datapath=""
     files = [
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00000.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00001.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00002.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00004.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00005.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00006.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00007.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00008.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00009.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00010.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00011.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00012.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00013.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00014.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00015.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00016.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00017.FLOW.h5",
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun3_1E19_RHC.flow_v6.00018.FLOW.h5"]
+"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun4_1E19_RHC.flow.00000.FLOW.h5"]
 
 
     if (len(sys.argv)>2):
         if (sys.argv[2]!=None):
             files=[str(sys.argv[2])]
-    useMergedHits=False
+    useMergedHits=True
     if (len(sys.argv)>1):
-        if( int(sys.argv[1])==1):
-            useMergedHits=True
+        if( int(sys.argv[1])==0):
+            useMergedHits=False
+    useData=False
+    if (len(sys.argv)>3):
+        if (int(sys.argv[3])==1):
+            useData=True
     fnum=0;
     # load files in list
     for fname in files:
@@ -63,9 +54,9 @@ def main(argv=None):
 
         # fill tree
 
-        outFileName = fname[:-3] + 'Testunmergedhits.root'
+        outFileName = fname[:-3] + 'Unmergedhits.root'
         if (useMergedHits):
-            outFileName = fname[:-3] + 'TestMergedhits.root'
+            outFileName = fname[:-3] + 'Mergedhits.root'
         #print('output file : ', '' + outFileName )
 
         output_file = ROOT.TFile((outFileName), "RECREATE")
@@ -229,36 +220,37 @@ def main(argv=None):
                 event_calib_final_hits=flow_out["charge/events/","charge/calib_prompt_hits", events["id"][ev_index]]
             else:
                 event_calib_final_hits=flow_out["charge/events/","charge/calib_final_hits", events["id"][ev_index]]
-  
-            # find spillID to use for truth info
-            spillArray=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/tracks",event_calib_prompt_hits[0]["id"]]["eventID"][0][0][0]
-            # find all truth info and fill it using a complicated vector 
-            allTrajectories,allVertices=find_all_truth_in_spill(spillArray, flow_out)
-            [nuID.push_back(int(i)) for i in allVertices[0]]
-            [nue.push_back(i) for i in allVertices[1]]
-            [nuPDG.push_back(int(i)) for i in allVertices[2]]
-            [nuvtxx.push_back(i) for i in allVertices[3]]
-            [nuvtxy.push_back(i) for i in allVertices[4]]
-            [nuvtxz.push_back(i) for i in allVertices[5]]
-            [nupx.push_back(i) for i in allVertices[6]]
-            [nupy.push_back(i) for i in allVertices[7]]
-            [nupz.push_back(i) for i in allVertices[8]]
-            [mode.push_back(i) for i in allVertices[9]]
-            [ccnc.push_back(i) for i in allVertices[10]]
-            [mcp_mother.push_back(int(i)) for i in allTrajectories[-1]]
-            [mcp_startx.push_back(i) for i in allTrajectories[0]]
-            [mcp_starty.push_back(i) for i in allTrajectories[1]]
-            [mcp_startz.push_back(i) for i in allTrajectories[2]]
-            [mcp_endx.push_back(i) for i in allTrajectories[3]]
-            [mcp_endy.push_back(i) for i in allTrajectories[4]]
-            [mcp_endz.push_back(i) for i in allTrajectories[5]]
-            [mcp_px.push_back(i) for i in allTrajectories[6]]
-            [mcp_py.push_back(i) for i in allTrajectories[7]]
-            [mcp_pz.push_back(i) for i in allTrajectories[8]]
-            [mcp_nuid.push_back(int(i)) for i in allTrajectories[-2]]
-            [mcp_pdg.push_back(int(i)) for i in allTrajectories[-3]]
-            [mcp_id.push_back(int(i)) for i in allTrajectories[-4]]
-            [mcp_energy.push_back(i) for i in allTrajectories[-5]]
+            
+            if (useData==False): 
+                # find spillID to use for truth info
+                spillArray=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/segments",event_calib_prompt_hits[0]["id"]]["event_id"][0][0][0]
+                # find all truth info and fill it using a complicated vector 
+                allTrajectories,allVertices=find_all_truth_in_spill(spillArray, flow_out)
+                [nuID.push_back(int(i)) for i in allVertices[0]]
+                [nue.push_back(i) for i in allVertices[1]]
+                [nuPDG.push_back(int(i)) for i in allVertices[2]]
+                [nuvtxx.push_back(i+trueXOffset) for i in allVertices[3]]
+                [nuvtxy.push_back(i+trueYOffset) for i in allVertices[4]]
+                [nuvtxz.push_back(i+trueZOffset) for i in allVertices[5]]
+                [nupx.push_back(i) for i in allVertices[6]]
+                [nupy.push_back(i) for i in allVertices[7]]
+                [nupz.push_back(i) for i in allVertices[8]]
+                [mode.push_back(i) for i in allVertices[9]]
+                [ccnc.push_back(i) for i in allVertices[10]]
+                [mcp_mother.push_back(int(i)) for i in allTrajectories[-1]]
+                [mcp_startx.push_back(i+trueXOffset) for i in allTrajectories[0]]
+                [mcp_starty.push_back(i+trueYOffset) for i in allTrajectories[1]]
+                [mcp_startz.push_back(i+trueZOffset) for i in allTrajectories[2]]
+                [mcp_endx.push_back(i+trueXOffset) for i in allTrajectories[3]]
+                [mcp_endy.push_back(i+trueYOffset) for i in allTrajectories[4]]
+                [mcp_endz.push_back(i+trueZOffset) for i in allTrajectories[5]]
+                [mcp_px.push_back(i) for i in allTrajectories[6]]
+                [mcp_py.push_back(i) for i in allTrajectories[7]]
+                [mcp_pz.push_back(i) for i in allTrajectories[8]]
+                [mcp_nuid.push_back(int(i)) for i in allTrajectories[-2]]
+                [mcp_pdg.push_back(int(i)) for i in allTrajectories[-3]]
+                [mcp_id.push_back(int(i)) for i in allTrajectories[-4]]
+                [mcp_energy.push_back(i) for i in allTrajectories[-5]] 
             # fill event info
             eventID[0]           = event['id'] 
             event_start_t[0] =int(event["ts_start"])
@@ -275,8 +267,7 @@ def main(argv=None):
             hits_id_raw=np.ma.getdata(event_calib_final_hits["id"][0]) 
             # run over list of hits in the event
             hitID=0
-            while hitID<len(hits_id):
-                #print(len(hits_id),hitID)
+            while hitID<len(hits_id): 
                 packetFrac.clear()   
                 trackID.clear()
                 trackIndex.clear() 
@@ -289,27 +280,28 @@ def main(argv=None):
 
                 hit_num=hits_id[hitID]
                 contr_info=[]
-                # save 
-                if (useMergedHits==False):
-                    contr_info=find_tracks_in_packet(hit_num, flow_out)
-                    [packetFrac.push_back(i) for i in contr_info[0]]
-                    #[trackIndex.push_back(int(i)) for i in contr_info[1]]
-                    [trackID.push_back(int(i)) for i in contr_info[2]]
-                    [particleID.push_back(int(i)) for i in contr_info[4]]
-                    #[particleIndex.push_back(int(i)) for i in contr_info[3]]
-                    [pdgHit.push_back(int(i)) for i in contr_info[5]]
-                else:
-                    contr_info=find_tracks_in_calib_final_hits(hit_num,flow_out)
-                    for truthInfo,packetContr in contr_info.items():
-                        #print(truthInfo, truthInfo[0],truthInfo[1],truthInfo[2],truthInfo[3])
-                        packetFrac.push_back(packetContr)
-                        trackID.push_back(int(truthInfo[2]))
-                        particleID.push_back(int(truthInfo[4]))
-                        pdgHit.push_back(int(truthInfo[10]))
+                if (useData==False):              
+                    # save 
+                    if (useMergedHits==False):
+                        contr_info=find_tracks_in_packet(hit_num, flow_out)
+                        [packetFrac.push_back(i) for i in contr_info[0]]
+                        #[trackIndex.push_back(int(i)) for i in contr_info[1]]
+                        [trackID.push_back(int(i)) for i in contr_info[2]]
+                        [particleID.push_back(int(i)) for i in contr_info[4]]
+                        #[particleIndex.push_back(int(i)) for i in contr_info[3]]
+                        [pdgHit.push_back(int(i)) for i in contr_info[5]]
+                    else:
+                        contr_info=find_tracks_in_calib_final_hits(hit_num,flow_out)
+                        [packetFrac.push_back(i) for i in contr_info[0]]
+                        #[trackIndex.push_back(int(i)) for i in contr_info[1]]
+                        [trackID.push_back(int(i)) for i in contr_info[2]]
+                        [particleID.push_back(int(i)) for i in contr_info[4]]
+                        #[particleIndex.push_back(int(i)) for i in contr_info[3]]
+                        [pdgHit.push_back(int(i)) for i in contr_info[5]]
                 # save hit information
-                z.push_back(hits_z[hitID])
-                y.push_back(hits_y[hitID])
-                x.push_back(hits_x[hitID])
+                z.push_back(hits_z[hitID]+trueZOffset)
+                y.push_back(hits_y[hitID]+trueYOffset)
+                x.push_back(hits_x[hitID]+trueXOffset)
                 charge.push_back(hits_Q[hitID])
                 E.push_back(hits_E[hitID])
                 ts.push_back(hits_ts[hitID])
@@ -342,6 +334,220 @@ def main(argv=None):
     #print("end of code")
     print("end of code")
 def find_tracks_in_calib_final_hits(hit_num, flow_out):
+    final_hit_backtrack=flow_out["charge/calib_final_hits","mc_truth/calib_final_hit_backtrack",hit_num][0]
+    final_hit_backtrackFull=flow_out["charge/calib_final_hits","mc_truth/calib_final_hit_backtrack",hit_num]
+    segIDsFromHits=final_hit_backtrack["segment_id"][0]
+    fracFromHits=final_hit_backtrack["fraction"][0]
+    track_contr = []
+    trackIndex_tot=[]
+    segment_tot=[]
+    pdg_tot=[] 
+    particleIndex_tot=[]
+    particle_tot=[]
+    vertex_tot=[]
+    vertexID_tot=[]
+    pdg_id=[]
+    total = 0.
+    # Get fraction information and track information from hit
+    i=0 
+    while i<len(fracFromHits):
+        fracs=fracFromHits[i]
+        ids=segIDsFromHits[i]
+        if (fracs==0 and ids==0):
+            i=i+1 
+            continue;
+        total += fracs
+        # get fraction information
+        traj_index =0
+        interaction_index=0
+        contrib = fracs
+        track_contr.append(contrib)
+
+        # get track info
+        seg=flow_out["mc_truth/segments/data"][ids]
+        segID = seg["segment_id"]
+        pdg = seg["pdg_id"]
+        particleID = seg["traj_id"]
+        vertexID=seg["vertex_id"]
+        pdg_id.append(pdg)
+        particleIndex_tot.append(traj_index)
+        trackIndex_tot.append(-999)
+        particle_tot.append(particleID)
+        vertexID_tot.append(vertexID)
+        vertex_tot.append(interaction_index)
+        i=i+1
+    if len(fracFromHits)<1:
+        pdg_id.append(-999)
+        particleIndex_tot.append(-999)
+        trackIndex_tot.append(-999)
+        particle_tot.append(-999)
+        vertexID_tot.append(-999)
+        vertex_tot.append(-999)
+    if len(segIDsFromHits)<1:
+        track_contr.append(-999)
+    
+     
+    return [track_contr,trackIndex_tot,segment_tot,particleIndex_tot,particle_tot,pdg_id,vertexID_tot,vertex_tot]
+
+def find_tracks_in_packet(hit_num, flow_out):
+    # variables we wil need for later
+    track_contr = []
+    trackIndex_tot=[]
+    segment_tot=[]
+    pdg_tot=[] 
+    particleIndex_tot=[]
+    particle_tot=[]
+    vertex_tot=[]
+    vertexID_tot=[]
+    pdg_id=[]
+    total = 0.
+    # Get fraction information and track information from hit
+    trajFromHits=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/segments",hit_num][0][0]
+    fracFromHits=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/packet_fraction",hit_num][0][0]
+    for fracs in fracFromHits:
+        total += fracs
+        # get fraction information
+        traj_index =0
+        interaction_index=0
+        contrib = fracs
+        track_contr.append(contrib)
+    for trajs in trajFromHits:
+        # get track info
+        seg = trajs["segment_id"]
+        pdg = trajs["pdg_id"]
+        particleID = trajs["traj_id"]
+        vertexID=trajs["vertex_id"]
+        pdg_id.append(pdg)
+        particleIndex_tot.append(traj_index)
+        trackIndex_tot.append(-999)
+        particle_tot.append(particleID)
+        vertexID_tot.append(vertexID)
+        vertex_tot.append(interaction_index)
+    if len(fracFromHits)<1:
+        pdg_id.append(-999)
+        particleIndex_tot.append(-999)
+        trackIndex_tot.append(-999)
+        particle_tot.append(-999)
+        vertexID_tot.append(-999)
+        vertex_tot.append(-999)
+    if len(trajFromHits)<1:
+        track_contr.append(-999)
+    
+     
+    return [track_contr,trackIndex_tot,segment_tot,particleIndex_tot,particle_tot,pdg_id,vertexID_tot,vertex_tot]
+
+def find_all_truth_in_spill(spillID, flow_out):
+    trajStartX=[]
+    trajStartY=[]
+    trajStartZ=[]
+    trajEndX=[]
+    trajEndY=[]
+    trajEndZ=[]
+    trajPx=[]
+    trajPy=[]
+    trajPz=[]
+    trajE=[]
+    trajID=[]
+    trajPDG=[]
+    trajVertexID=[]
+    trajParentID=[]
+    traj_indicesArray = np.where(flow_out['mc_truth/trajectories/data']["event_id"] == spillID)[0] 
+    # get all the mcparticle information
+    for traj_indices in traj_indicesArray:
+        trajStartX.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_start"][0])
+        trajStartY.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_start"][1])
+        trajStartZ.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_start"][2])
+        trajEndX.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_end"][0])
+        trajEndY.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_end"][1])
+        trajEndZ.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_end"][2])
+        trajID.append(flow_out["mc_truth/trajectories/data"][traj_indices]["traj_id"])
+        trajPDG.append(flow_out["mc_truth/trajectories/data"][traj_indices]["pdg_id"])
+        pdg=flow_out["mc_truth/trajectories/data"][traj_indices]["pdg_id"]
+        px=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][0]*0.001
+        py=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][1]*0.001
+        pz=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][2]*0.001
+        trajE.append(flow_out["mc_truth/trajectories/data"][traj_indices]["E_start"]*0.001)
+
+        trajPx.append(px)
+        trajPy.append(py)
+        trajPz.append(pz)
+        trajVertexID.append(flow_out["mc_truth/trajectories/data"][traj_indices]["vertex_id"])
+        trajParentID.append(flow_out["mc_truth/trajectories/data"][traj_indices]["parent_id"])
+    nuVertexIndex=[]
+    for i in trajVertexID:
+        if i<1000000:
+            nuVertexIndex.append(int(i))
+        else:
+            a=str(i)
+            a=int(a[0]+a[-5:])
+            nuVertexIndex.append(a) 
+    trajectories=[trajStartX,trajStartY,trajStartZ,trajEndX,trajEndY,trajEndZ,trajPx,trajPy,trajPz,trajE,trajID,trajPDG,nuVertexIndex,trajParentID]
+    vertex_indicesArray = np.where(flow_out["/mc_truth/interactions/data"]["event_id"] == spillID)[0]
+    # get all the neutrino information
+    nuVertexID=[]
+    nuVertexX=[]
+    nuVertexY=[]
+    nuVertexZ=[]
+    nuVertexE=[]
+    nuPDG=[]
+    nuPx=[]
+    nuPy=[]
+    nuPz=[]
+    nuCode=[]
+    nuCC=[]
+    nuVertexArray=[]
+    for vertex_indices in vertex_indicesArray:
+        nuVertexArray.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex_id"])
+        nuVertexX.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][0])
+        nuVertexY.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][1])
+        nuVertexZ.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][2])
+        nuVertexE.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["Enu"]*0.001)
+        nuPDG.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_pdg"])
+        nuPx.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][0])
+        nuPy.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][1])
+        nuPz.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][2])
+        code,cc=get_nuance_code(vertex_indices,flow_out)
+        nuCode.append(code)
+        nuCC.append(cc)
+
+
+
+    for i in nuVertexArray:
+        if i<1000000:
+            nuVertexID.append(int(i))
+        else:
+            a=str(i)
+            a=int(a[0]+a[-5:])
+            nuVertexID.append(a)
+    vertices=[nuVertexID,nuVertexE,nuPDG,nuVertexX,nuVertexY,nuVertexZ,nuPx,nuPy,nuPz,nuCode,nuCC]
+    return trajectories, vertices
+def get_nuance_code(vertex_num,flow_out):
+    # convert the neutrino information to nuance code from PandoraInterface code
+    qe=flow_out["mc_truth/interactions/data"][vertex_num]["isQES"]
+    nccc=flow_out["mc_truth/interactions/data"][vertex_num]["isCC"]
+    mec=flow_out["mc_truth/interactions/data"][vertex_num]["isMEC"]
+    res=flow_out["mc_truth/interactions/data"][vertex_num]["isRES"]
+    dis=flow_out["mc_truth/interactions/data"][vertex_num]["isDIS"]
+    coh=flow_out["mc_truth/interactions/data"][vertex_num]["isCOH"]
+    code=1000;
+    cc=1
+    if nccc==1:
+        cc=0
+    if (qe):
+        code=0
+
+    if (dis):
+        code=2
+    if (res):
+        code=1
+    if (coh):
+        code=3
+        if (qe):
+            code=4;
+    if (mec):
+        code=10
+    return int(code),int(cc)
+def find_tracks_in_calib_final_hits_from_prompt_hits(hit_num, flow_out):
     # code from Kevin Wood
     #print("calib_final_hit at index", hit_num,':')
     #print('     ',flow_out['charge/calib_final_hits/data'][hit_num])
@@ -438,164 +644,6 @@ def find_tracks_in_packet2(hit_num, flow_out):
         track_contr.append([tracks[i],contrib[i],trackIndex_tot[i],segmentID_tot[i],0,particle_tot[i],vertexID_tot[i],pdg_id[i]])
         i=i+1
     return track_contr
-def find_tracks_in_packet(hit_num, flow_out):
-    # variables we wil need for later
-    track_contr = []
-    trackIndex_tot=[]
-    segment_tot=[]
-    pdg_tot=[] 
-    particleIndex_tot=[]
-    particle_tot=[]
-    vertex_tot=[]
-    vertexID_tot=[]
-    pdg_id=[]
-    total = 0.
-    # Get fraction information and track information from hit
-    trajFromHits=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/tracks",hit_num][0][0]
-    fracFromHits=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/packet_fraction",hit_num][0][0]
-    for fracs in fracFromHits:
-        total += fracs
-        # get fraction information
-        traj_index =0
-        interaction_index=0
-        contrib = fracs
-        track_contr.append(contrib)
-    for trajs in trajFromHits:
-        # get track info
-        seg = trajs["segment_id"]
-        pdg = trajs["pdgId"]
-        particleID = trajs["trackID"]
-        vertexID=trajs["vertexID"]
-        pdg_id.append(pdg)
-        particleIndex_tot.append(traj_index)
-        trackIndex_tot.append(-999)
-        particle_tot.append(particleID)
-        vertexID_tot.append(vertexID)
-        vertex_tot.append(interaction_index)
-    if len(fracFromHits)<1:
-        pdg_id.append(-999)
-        particleIndex_tot.append(-999)
-        trackIndex_tot.append(-999)
-        particle_tot.append(-999)
-        vertexID_tot.append(-999)
-        vertex_tot.append(-999)
-    if len(trajFromHits)<1:
-        track_contr.append(-999)
-    
-     
-    return [track_contr,trackIndex_tot,segment_tot,particleIndex_tot,particle_tot,pdg_id,vertexID_tot,vertex_tot]
-
-def find_all_truth_in_spill(spillID, flow_out):
-    trajStartX=[]
-    trajStartY=[]
-    trajStartZ=[]
-    trajEndX=[]
-    trajEndY=[]
-    trajEndZ=[]
-    trajPx=[]
-    trajPy=[]
-    trajPz=[]
-    trajE=[]
-    trajID=[]
-    trajPDG=[]
-    trajVertexID=[]
-    trajParentID=[]
-    traj_indicesArray = np.where(flow_out['mc_truth/trajectories/data']["eventID"] == spillID)[0]
-    # get all the mcparticle information
-    for traj_indices in traj_indicesArray:
-        trajStartX.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_start"][0])
-        trajStartY.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_start"][1])
-        trajStartZ.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_start"][2])
-        trajEndX.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_end"][0])
-        trajEndY.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_end"][1])
-        trajEndZ.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_end"][2])
-        trajID.append(flow_out["mc_truth/trajectories/data"][traj_indices]["trackID"])
-        trajPDG.append(flow_out["mc_truth/trajectories/data"][traj_indices]["pdgId"])
-        pdg=flow_out["mc_truth/trajectories/data"][traj_indices]["pdgId"]
-        px=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][0]*0.001
-        py=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][1]*0.001
-        pz=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][2]*0.001
-        trajE.append(flow_out["mc_truth/trajectories/data"][traj_indices]["E_start"]*0.001)
-
-        trajPx.append(px)
-        trajPy.append(py)
-        trajPz.append(pz)
-        trajVertexID.append(flow_out["mc_truth/trajectories/data"][traj_indices]["vertexID"])
-        trajParentID.append(flow_out["mc_truth/trajectories/data"][traj_indices]["parentID"])
-    nuVertexIndex=[]
-    for i in trajVertexID:
-        if i<1000000:
-            nuVertexIndex.append(int(i))
-        else:
-            a=str(i)
-            a=int(a[0]+a[-5:])
-            nuVertexIndex.append(a) 
-    trajectories=[trajStartX,trajStartY,trajStartZ,trajEndX,trajEndY,trajEndZ,trajPx,trajPy,trajPz,trajE,trajID,trajPDG,nuVertexIndex,trajParentID]
-    vertex_indicesArray = np.where(flow_out["/mc_truth/interactions/data"]["eventID"] == spillID)[0]
-    # get all the neutrino information
-    nuVertexID=[]
-    nuVertexX=[]
-    nuVertexY=[]
-    nuVertexZ=[]
-    nuVertexE=[]
-    nuPDG=[]
-    nuPx=[]
-    nuPy=[]
-    nuPz=[]
-    nuCode=[]
-    nuCC=[]
-    nuVertexArray=[]
-    for vertex_indices in vertex_indicesArray:
-        nuVertexArray.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertexID"])
-        nuVertexX.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][0])
-        nuVertexY.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][1])
-        nuVertexZ.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][2])
-        nuVertexE.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["Enu"]*0.001)
-        nuPDG.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_pdg"])
-        nuPx.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][0])
-        nuPy.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][1])
-        nuPz.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][2])
-        code,cc=get_nuance_code(vertex_indices,flow_out)
-        nuCode.append(code)
-        nuCC.append(cc)
-
-
-
-    for i in nuVertexArray:
-        if i<1000000:
-            nuVertexID.append(int(i))
-        else:
-            a=str(i)
-            a=int(a[0]+a[-5:])
-            nuVertexID.append(a)
-    vertices=[nuVertexID,nuVertexE,nuPDG,nuVertexX,nuVertexY,nuVertexZ,nuPx,nuPy,nuPz,nuCode,nuCC]
-    return trajectories, vertices
-def get_nuance_code(vertex_num,flow_out):
-    # convert the neutrino information to nuance code from PandoraInterface code
-    qe=flow_out["mc_truth/interactions/data"][vertex_num]["isQES"]
-    nccc=flow_out["mc_truth/interactions/data"][vertex_num]["isCC"]
-    mec=flow_out["mc_truth/interactions/data"][vertex_num]["isMEC"]
-    res=flow_out["mc_truth/interactions/data"][vertex_num]["isRES"]
-    dis=flow_out["mc_truth/interactions/data"][vertex_num]["isDIS"]
-    coh=flow_out["mc_truth/interactions/data"][vertex_num]["isCOH"]
-    code=1000;
-    cc=1
-    if nccc==1:
-        cc=0
-    if (qe):
-        code=0
-
-    if (dis):
-        code=2
-    if (res):
-        code=1
-    if (coh):
-        code=3
-        if (qe):
-            code=4;
-    if (mec):
-        code=10
-    return int(code),int(cc)
 if __name__ == "__main__":
     main()
 

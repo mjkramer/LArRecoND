@@ -1,8 +1,8 @@
-#code generates root file from evd file by Salvatore Davide Porzio and Saba Parsa
-# python h5_to_root_ndlarflow.py type filename
-# type is a boolean variable of 1 (merged)  or 0 (unmerged) hits
-# filename is an argument of the filename (does not need quotations) 
 # Adapted for 2x2 conversion for Pandora by Richard Diurba
+# Code based on Bern Module data root file conversion by Salvatore Davide Porzio and Saba Parsa
+# python h5_to_root_ndlarflow.py filename data
+# filename is an argument of the filename (does not need quotations)
+# data is to toggle the MC information for simulation (0) and data (1), default is simulation
 # Requires standard ROOT, h5py, and numpy 
 # Also requires h5flow, a package by Peter Madigan (https://github.com/peter-madigan/h5flow)
 #To install, git clone into a directory and then run pip install .
@@ -18,21 +18,24 @@ import os
 import ROOT
 from ROOT import  TFile
 import sys
+trueXOffset=0 # Offsets if geometry changes
+trueYOffset=0#42+268
+trueZOffset=0#-1300
 def main(argv=None):
     
     # set input files to be loaded
     datapath=""
     files = [
-"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun4_1E19_RHC.flow.00000.FLOW.h5"]
+"/dune/data/users/rdiurba/ndlarflow_RHC_mar2023/MiniRun4_1E19_RHC.larnd.00123.TESTFILE.proto_nd_flow.h5"]
 
 
-    if (len(sys.argv)>2):
-        if (sys.argv[2]!=None):
-            files=[str(sys.argv[2])]
-    useMergedHits=False
     if (len(sys.argv)>1):
-        if( int(sys.argv[1])==1):
-            useMergedHits=True
+        if (sys.argv[1]!=None):
+            files=[str(sys.argv[1])]
+    useData=False
+    if (len(sys.argv)>2):
+        if (int(sys.argv[2])==1):
+            useData=True
     fnum=0;
     # load files in list
     for fname in files:
@@ -46,9 +49,7 @@ def main(argv=None):
 
         # fill tree
 
-        outFileName = fname[:-3] + 'Testunmergedhits.root'
-        if (useMergedHits):
-            outFileName = fname[:-3] + 'TestMergedhits.root'
+        outFileName = fname[:-3] + 'Hits.root'
         #print('output file : ', '' + outFileName )
 
         output_file = ROOT.TFile((outFileName), "RECREATE")
@@ -77,6 +78,19 @@ def main(argv=None):
         hit_segmentIndex=ROOT.std.vector("std::vector<int>")();
         hit_particleIndex=ROOT.std.vector("std::vector<int>")();
         hit_interactionIndex=ROOT.std.vector("std::vector<int>")();
+        x_uncalib=ROOT.std.vector('float')();
+        y_uncalib=ROOT.std.vector('float')();
+        z_uncalib=ROOT.std.vector('float')();
+        ts_uncalib=ROOT.std.vector('float')();
+        E_uncalib=ROOT.std.vector("float")();
+        charge_uncalib=ROOT.std.vector('float')();
+        hit_pdg_uncalib=ROOT.std.vector("std::vector<int>")();
+        hit_particleID_uncalib=ROOT.std.vector("std::vector<int>")();
+        hit_segmentID_uncalib=ROOT.std.vector("std::vector<int>")();
+        hit_packetFrac_uncalib=ROOT.std.vector("std::vector<float>")();
+        hit_segmentIndex_uncalib=ROOT.std.vector("std::vector<int>")();
+        hit_particleIndex_uncalib=ROOT.std.vector("std::vector<int>")();
+        hit_interactionIndex_uncalib=ROOT.std.vector("std::vector<int>")();
         mcp_px=ROOT.std.vector("float")();
         mcp_py=ROOT.std.vector("float")();
         mcp_pz=ROOT.std.vector("float")();
@@ -123,6 +137,21 @@ def main(argv=None):
         output_tree.Branch("hit_interactionIndex",hit_interactionIndex);
         output_tree.Branch("hit_pdg",hit_pdg)
         output_tree.Branch("hit_packetFrac",hit_packetFrac)
+
+        output_tree.Branch("x_uncalib",x_uncalib)
+        output_tree.Branch("y_uncalib",y_uncalib)
+        output_tree.Branch("z_uncalib",z_uncalib)
+        output_tree.Branch("ts_uncalib",ts_uncalib)
+        output_tree.Branch("charge_uncalib"      ,charge_uncalib)
+        output_tree.Branch("E_uncalib",E_uncalib)
+        output_tree.Branch("hit_segmentID_uncalib",hit_segmentID_uncalib)
+        output_tree.Branch("hit_segmentIndex_uncalib",hit_segmentIndex_uncalib)
+        output_tree.Branch("hit_particleID_uncalib",hit_particleID_uncalib)
+        output_tree.Branch("hit_particleIndex_uncalib",hit_particleIndex_uncalib)
+        output_tree.Branch("hit_interactionIndex_uncalib",hit_interactionIndex_uncalib);
+        output_tree.Branch("hit_pdg_uncalib",hit_pdg_uncalib)
+        output_tree.Branch("hit_packetFrac_uncalib",hit_packetFrac_uncalib)
+
         output_tree.Branch("mcp_energy",mcp_energy)
         output_tree.Branch("mcp_pdg",mcp_pdg)
         output_tree.Branch("mcp_nuid",mcp_nuid)
@@ -151,8 +180,8 @@ def main(argv=None):
 
 
 
-        run[0]=int(fname[-12:-9])
-        subrun[0]=int(fname[-12:-9])
+        run[0]=int(0)
+        subrun[0]=int(0)
         # loop over events
         for ev_index in range(len(events)):
             # refresh variables
@@ -169,6 +198,21 @@ def main(argv=None):
             hit_particleIndex.clear()
             hit_packetFrac.clear()
             hit_segmentIndex.clear()
+
+            x_uncalib.clear()
+            y_uncalib.clear()
+            z_uncalib.clear()
+            charge_uncalib.clear()
+            E_uncalib.clear()
+            ts_uncalib.clear()
+            hit_segmentID_uncalib.clear()
+            hit_pdg_uncalib.clear()
+            hit_particleID_uncalib.clear()
+            hit_interactionIndex_uncalib.clear()
+            hit_particleIndex_uncalib.clear()
+            hit_packetFrac_uncalib.clear()
+            hit_segmentIndex_uncalib.clear()
+
             mcp_px.clear()
             mcp_py.clear()
             mcp_pz.clear()
@@ -206,42 +250,38 @@ def main(argv=None):
             # Get event info for data
             event = f["charge/events/data"][ev_index]
             event_calib_prompt_hits=flow_out["charge/events/","charge/calib_prompt_hits", events["id"][ev_index]]
-            event_calib_final_hits=[]
-            #print(useMergedHits)
-            if (useMergedHits==False):
-                event_calib_final_hits=flow_out["charge/events/","charge/calib_prompt_hits", events["id"][ev_index]]
-            else:
-                event_calib_final_hits=flow_out["charge/events/","charge/calib_final_hits", events["id"][ev_index]]
-  
-            # find spillID to use for truth info
-            spillArray=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/segments",event_calib_prompt_hits[0]["id"]]["event_id"][0][0][0]
-            # find all truth info and fill it using a complicated vector 
-            allTrajectories,allVertices=find_all_truth_in_spill(spillArray, flow_out)
-            [nuID.push_back(int(i)) for i in allVertices[0]]
-            [nue.push_back(i) for i in allVertices[1]]
-            [nuPDG.push_back(int(i)) for i in allVertices[2]]
-            [nuvtxx.push_back(i) for i in allVertices[3]]
-            [nuvtxy.push_back(i) for i in allVertices[4]]
-            [nuvtxz.push_back(i) for i in allVertices[5]]
-            [nupx.push_back(i) for i in allVertices[6]]
-            [nupy.push_back(i) for i in allVertices[7]]
-            [nupz.push_back(i) for i in allVertices[8]]
-            [mode.push_back(i) for i in allVertices[9]]
-            [ccnc.push_back(i) for i in allVertices[10]]
-            [mcp_mother.push_back(int(i)) for i in allTrajectories[-1]]
-            [mcp_startx.push_back(i) for i in allTrajectories[0]]
-            [mcp_starty.push_back(i) for i in allTrajectories[1]]
-            [mcp_startz.push_back(i) for i in allTrajectories[2]]
-            [mcp_endx.push_back(i) for i in allTrajectories[3]]
-            [mcp_endy.push_back(i) for i in allTrajectories[4]]
-            [mcp_endz.push_back(i) for i in allTrajectories[5]]
-            [mcp_px.push_back(i) for i in allTrajectories[6]]
-            [mcp_py.push_back(i) for i in allTrajectories[7]]
-            [mcp_pz.push_back(i) for i in allTrajectories[8]]
-            [mcp_nuid.push_back(int(i)) for i in allTrajectories[-2]]
-            [mcp_pdg.push_back(int(i)) for i in allTrajectories[-3]]
-            [mcp_id.push_back(int(i)) for i in allTrajectories[-4]]
-            [mcp_energy.push_back(i) for i in allTrajectories[-5]] 
+            event_calib_final_hits=flow_out["charge/events/","charge/calib_final_hits", events["id"][ev_index]]
+            
+            if (useData==False): 
+                # find spillID to use for truth info
+                spillArray=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/segments",event_calib_prompt_hits[0]["id"]]["event_id"][0][0][0]
+                # find all truth info and fill it using a complicated vector 
+                allTrajectories,allVertices=find_all_truth_in_spill(spillArray, flow_out)
+                [nuID.push_back(int(i)) for i in allVertices[0]]
+                [nue.push_back(i) for i in allVertices[1]]
+                [nuPDG.push_back(int(i)) for i in allVertices[2]]
+                [nuvtxx.push_back(i+trueXOffset) for i in allVertices[3]]
+                [nuvtxy.push_back(i+trueYOffset) for i in allVertices[4]]
+                [nuvtxz.push_back(i+trueZOffset) for i in allVertices[5]]
+                [nupx.push_back(i) for i in allVertices[6]]
+                [nupy.push_back(i) for i in allVertices[7]]
+                [nupz.push_back(i) for i in allVertices[8]]
+                [mode.push_back(i) for i in allVertices[9]]
+                [ccnc.push_back(i) for i in allVertices[10]]
+                [mcp_mother.push_back(int(i)) for i in allTrajectories[-1]]
+                [mcp_startx.push_back(i+trueXOffset) for i in allTrajectories[0]]
+                [mcp_starty.push_back(i+trueYOffset) for i in allTrajectories[1]]
+                [mcp_startz.push_back(i+trueZOffset) for i in allTrajectories[2]]
+                [mcp_endx.push_back(i+trueXOffset) for i in allTrajectories[3]]
+                [mcp_endy.push_back(i+trueYOffset) for i in allTrajectories[4]]
+                [mcp_endz.push_back(i+trueZOffset) for i in allTrajectories[5]]
+                [mcp_px.push_back(i) for i in allTrajectories[6]]
+                [mcp_py.push_back(i) for i in allTrajectories[7]]
+                [mcp_pz.push_back(i) for i in allTrajectories[8]]
+                [mcp_nuid.push_back(int(i)) for i in allTrajectories[-2]]
+                [mcp_pdg.push_back(int(i)) for i in allTrajectories[-3]]
+                [mcp_id.push_back(int(i)) for i in allTrajectories[-4]]
+                [mcp_energy.push_back(i) for i in allTrajectories[-5]] 
             # fill event info
             eventID[0]           = event['id'] 
             event_start_t[0] =int(event["ts_start"])
@@ -271,17 +311,9 @@ def main(argv=None):
 
                 hit_num=hits_id[hitID]
                 contr_info=[]
-                # save 
-                if (useMergedHits==False):
-                    contr_info=find_tracks_in_packet(hit_num, flow_out)
-                    [packetFrac.push_back(i) for i in contr_info[0]]
-                    #[trackIndex.push_back(int(i)) for i in contr_info[1]]
-                    [trackID.push_back(int(i)) for i in contr_info[2]]
-                    [particleID.push_back(int(i)) for i in contr_info[4]]
-                    #[particleIndex.push_back(int(i)) for i in contr_info[3]]
-                    [pdgHit.push_back(int(i)) for i in contr_info[5]]
-                else:
-                    contr_info=find_tracks_in_calib_final_hits(hit_num,flow_out)
+                if (useData==False):              
+                    # save 
+                    contr_info=find_tracks_in_calib_hits(hit_num,flow_out)
                     [packetFrac.push_back(i) for i in contr_info[0]]
                     #[trackIndex.push_back(int(i)) for i in contr_info[1]]
                     [trackID.push_back(int(i)) for i in contr_info[2]]
@@ -289,9 +321,9 @@ def main(argv=None):
                     #[particleIndex.push_back(int(i)) for i in contr_info[3]]
                     [pdgHit.push_back(int(i)) for i in contr_info[5]]
                 # save hit information
-                z.push_back(hits_z[hitID])
-                y.push_back(hits_y[hitID])
-                x.push_back(hits_x[hitID])
+                z.push_back(hits_z[hitID]+trueZOffset)
+                y.push_back(hits_y[hitID]+trueYOffset)
+                x.push_back(hits_x[hitID]+trueXOffset)
                 charge.push_back(hits_Q[hitID])
                 E.push_back(hits_E[hitID])
                 ts.push_back(hits_ts[hitID])
@@ -302,6 +334,55 @@ def main(argv=None):
                 hit_interactionIndex.push_back(interactionIndex)
                 hit_segmentIndex.push_back(trackIndex)
                 hit_segmentID.push_back(trackID)
+
+                hitID=hitID+1
+            # grab event hit list and variables for prompt hits
+            hits_z=np.ma.getdata(event_calib_prompt_hits["z"][0])
+            hits_y=np.ma.getdata(event_calib_prompt_hits["y"][0])
+            hits_x=np.ma.getdata(event_calib_prompt_hits["x"][0])
+            hits_Q=np.ma.getdata(event_calib_prompt_hits["Q"][0])
+            hits_E=np.ma.getdata(event_calib_prompt_hits["E"][0])
+            hits_ts=np.ma.getdata(event_calib_prompt_hits["ts_pps"][0])
+            hits_id=np.ma.getdata(event_calib_prompt_hits["id"][0]) 
+            hits_id_raw=np.ma.getdata(event_calib_prompt_hits["id"][0]) 
+            # run over list of hits in the event
+            hitID=0
+            while hitID<len(hits_id): 
+                packetFrac.clear()   
+                trackID.clear()
+                trackIndex.clear() 
+                particleID.clear() 
+                particleIndex.clear()
+                interactionIndex.clear()
+                interactionIndex.clear()
+                pdgHit.clear()       
+    
+
+                hit_num=hits_id[hitID]
+                contr_info=[]
+                if (useData==False):              
+                    # save 
+                    contr_info=find_tracks_in_calib_hits(hit_num,flow_out, typ="prompt")
+                    [packetFrac.push_back(i) for i in contr_info[0]]
+                    #[trackIndex.push_back(int(i)) for i in contr_info[1]]
+                    [trackID.push_back(int(i)) for i in contr_info[2]]
+                    [particleID.push_back(int(i)) for i in contr_info[4]]
+                    #[particleIndex.push_back(int(i)) for i in contr_info[3]]
+                    [pdgHit.push_back(int(i)) for i in contr_info[5]]
+                # save hit information
+                z_uncalib.push_back(hits_z[hitID]+trueZOffset)
+                y_uncalib.push_back(hits_y[hitID]+trueYOffset)
+                x_uncalib.push_back(hits_x[hitID]+trueXOffset)
+                charge_uncalib.push_back(hits_Q[hitID])
+                E_uncalib.push_back(hits_E[hitID])
+                ts_uncalib.push_back(hits_ts[hitID])
+                hit_packetFrac_uncalib.push_back(packetFrac)
+                hit_particleID_uncalib.push_back(particleID)
+                hit_particleIndex_uncalib.push_back(particleIndex)
+                hit_pdg_uncalib.push_back(pdgHit)
+                hit_interactionIndex_uncalib.push_back(interactionIndex)
+                hit_segmentIndex_uncalib.push_back(trackIndex)
+                hit_segmentID_uncalib.push_back(trackID)
 
                 hitID=hitID+1
                
@@ -323,9 +404,9 @@ def main(argv=None):
     #end file loop
     #print("end of code")
     print("end of code")
-def find_tracks_in_calib_final_hits(hit_num, flow_out):
-    final_hit_backtrack=flow_out["charge/calib_final_hits","mc_truth/calib_final_hit_backtrack",hit_num][0]
-    final_hit_backtrackFull=flow_out["charge/calib_final_hits","mc_truth/calib_final_hit_backtrack",hit_num]
+def find_tracks_in_calib_hits(hit_num, flow_out, typ="final"):
+    final_hit_backtrack=flow_out["charge/calib_"+str(typ)+"_hits","mc_truth/calib_"+str(typ)+"_hit_backtrack",hit_num][0]
+    final_hit_backtrackFull=flow_out["charge/calib_"+str(typ)+"_hits","mc_truth/calib_"+str(typ)+"_hit_backtrack",hit_num]
     segIDsFromHits=final_hit_backtrack["segment_id"][0]
     fracFromHits=final_hit_backtrack["fraction"][0]
     track_contr = []
