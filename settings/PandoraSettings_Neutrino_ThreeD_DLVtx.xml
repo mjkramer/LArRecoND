@@ -58,10 +58,6 @@
         <MinCosThetaCut>0.96</MinCosThetaCut>
     </algorithm>
 
-    <algorithm type = "LArShowerGrowing">
-        <InputClusterListNames>Clusters3D</InputClusterListNames>
-    </algorithm>
-
     <algorithm type = "LArCreateTwoDClustersFromThreeD">
         <InputCaloHitListNameU>CaloHitListU</InputCaloHitListNameU>
         <InputCaloHitListNameV>CaloHitListV</InputCaloHitListNameV>
@@ -87,34 +83,48 @@
         <EnableCrossingCandidates>false</EnableCrossingCandidates>
         <ReducedCandidates>true</ReducedCandidates>
     </algorithm>
-<!--    <algorithm type = "LArVisualMonitoring">
-        <VertexListNames>CandidateVertices3D</VertexListNames>
-        <ClusterListNames>Clusters3D</ClusterListNames>
-        <ShowDetector>true</ShowDetector>
-    </algorithm> -->
     <!-- We have made the 2D clusters, so remove 3D for now to make hits available later -->
     <algorithm type = "LArListDeletion" description = "3DClusterDeletion">
         <ClusterListNames>Clusters3D</ClusterListNames>
     </algorithm>
-    <algorithm type = "LArBdtVertexSelection">
-        <InputCaloHitListNames>CaloHitListU CaloHitListV CaloHitListW</InputCaloHitListNames>
-        <InputClusterListNames>ClustersU ClustersV ClustersW</InputClusterListNames>
-        <OutputVertexListName>NeutrinoVertices3D</OutputVertexListName>
-        <ReplaceCurrentVertexList>true</ReplaceCurrentVertexList>
-        <MvaFileName>PandoraMVAData/PandoraBdt_Vertexing_DUNEFD_v03_27_00.xml</MvaFileName>
-        <RegionMvaName>DUNEFD_VertexSelectionRegion</RegionMvaName>
-        <VertexMvaName>DUNEFD_VertexSelectionVertex</VertexMvaName>
-        <FeatureTools>
-            <tool type = "LArEnergyKickFeature"/>
-            <tool type = "LArLocalAsymmetryFeature"/>
-            <tool type = "LArGlobalAsymmetryFeature"/>
-            <tool type = "LArShowerAsymmetryFeature"/>
-            <tool type = "LArRPhiFeature"/>
-            <tool type = "LArEnergyDepositionAsymmetryFeature"/>
-        </FeatureTools>
-        <LegacyEventShapes>false</LegacyEventShapes>
-        <LegacyVariables>false</LegacyVariables>
+<!--
+    <algorithm type = "LArVisualMonitoring">
+        <VertexListNames>CandidateVertices3D</VertexListNames>
+        <ClusterListNames>Clusters3D</ClusterListNames>
+        <ShowDetector>true</ShowDetector>
     </algorithm>
+-->
+    <!-- Deep Learning (DL) vertexing -->
+    <algorithm type = "LArDLVertexing">
+        <TrainingMode>false</TrainingMode>
+        <OutputVertexListName>NeutrinoVertices3D_Pass1</OutputVertexListName>
+        <CaloHitListNames>CaloHitListU CaloHitListV CaloHitListW</CaloHitListNames>
+        <ModelFileNameU>PandoraNetworkData/PandoraNet_Vertex_DUNEND_Accel_1_U_v04_06_00.pt</ModelFileNameU>
+        <ModelFileNameV>PandoraNetworkData/PandoraNet_Vertex_DUNEND_Accel_1_V_v04_06_00.pt</ModelFileNameV>
+        <ModelFileNameW>PandoraNetworkData/PandoraNet_Vertex_DUNEND_Accel_1_W_v04_06_00.pt</ModelFileNameW>
+	<DistanceThresholds>0.0 0.01 0.02 0.03 0.04 0.055 0.07 0.09 0.115 0.145 0.175 0.21 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.80 1.0</DistanceThresholds>
+	<DriftStep>0.3</DriftStep>
+	<VolumeType>dune_nd</VolumeType>
+        <Visualise>false</Visualise>
+    </algorithm>
+
+    <algorithm type = "LArDLVertexing">
+        <TrainingMode>false</TrainingMode>
+        <Pass>2</Pass>
+        <InputVertexListName>NeutrinoVertices3D_Pass1</InputVertexListName>
+        <OutputVertexListName>NeutrinoVertices3D</OutputVertexListName>
+        <CaloHitListNames>CaloHitListU CaloHitListV CaloHitListW</CaloHitListNames>
+        <ModelFileNameU>PandoraNetworkData/PandoraNet_Vertex_DUNEND_Accel_2_U_v04_06_00.pt</ModelFileNameU>
+        <ModelFileNameV>PandoraNetworkData/PandoraNet_Vertex_DUNEND_Accel_2_V_v04_06_00.pt</ModelFileNameV>
+        <ModelFileNameW>PandoraNetworkData/PandoraNet_Vertex_DUNEND_Accel_2_W_v04_06_00.pt</ModelFileNameW>
+        <ImageWidth>128</ImageWidth>
+        <ImageHeight>128</ImageHeight>
+        <DistanceThresholds>0.0 0.01 0.02 0.03 0.04 0.055 0.07 0.09 0.115 0.145 0.175 0.21 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70, 0.80 1.0</DistanceThresholds>
+        <DriftStep>0.3</DriftStep>
+        <VolumeType>dune_nd</VolumeType>
+        <Visualise>false</Visualise>
+    </algorithm>
+
     <algorithm type = "LArCutClusterCharacterisation">
         <InputClusterListNames>ClustersU ClustersV ClustersW</InputClusterListNames>
         <ZeroMode>true</ZeroMode>
@@ -173,7 +183,7 @@
 <!--        <MaxShowerLengthCut>500.</MaxShowerLengthCut> -->
         <VertexDistanceRatioCut>500.</VertexDistanceRatioCut>
         <SlidingFitWindow>10</SlidingFitWindow>
-        <ShowerWidthRatioCut>2.0</ShowerWidthRatioCut> 
+        <ShowerWidthRatioCut>2.0</ShowerWidthRatioCut>
     </algorithm>
     <algorithm type = "LArListDeletion">
         <PfoListNames>ShowerParticles3D</PfoListNames>
@@ -306,42 +316,6 @@
         <DaughterListNames>ClustersU ClustersV ClustersW</DaughterListNames>
         <AddHitsAsIsolated>true</AddHitsAsIsolated>
     </algorithm>
-    
-    <algorithm type = "LArBdtPfoCharacterisation">
-        <TrackPfoListName>TrackParticles3D</TrackPfoListName>
-        <ShowerPfoListName>ShowerParticles3D</ShowerPfoListName>
-        <MCParticleListName>Input</MCParticleListName>
-        <CaloHitListName>CaloHitList2D</CaloHitListName>
-        <UseThreeDInformation>true</UseThreeDInformation>
-        <MvaFileName>PandoraMVAData/PandoraBdt_PfoCharacterisation_ProtoDUNESP_v03_26_00.xml</MvaFileName>
-        <MvaName>PfoCharacterisation</MvaName>
-        <MvaFileNameNoChargeInfo>PandoraMVAData/PandoraBdt_PfoCharacterisation_ProtoDUNESP_v03_26_00.xml</MvaFileNameNoChargeInfo>
-        <MvaNameNoChargeInfo>PfoCharacterisationNoChargeInfo</MvaNameNoChargeInfo>
-        <TrainingSetMode>false</TrainingSetMode>
-        <TrainingOutputFileName>training_output</TrainingOutputFileName>
-        <FeatureTools>
-            <tool type = "LArThreeDLinearFitFeatureTool"/>
-            <tool type = "LArThreeDVertexDistanceFeatureTool"/>
-            <tool type = "LArThreeDPCAFeatureTool"/>
-            <tool type = "LArPfoHierarchyFeatureTool"/>
-            <tool type = "LArThreeDOpeningAngleFeatureTool">
-                <HitFraction>0.2</HitFraction>
-            </tool>
-            <tool type = "LArThreeDChargeFeatureTool"/>
-        </FeatureTools>
-        <FeatureToolsNoChargeInfo>
-            <tool type = "LArThreeDLinearFitFeatureTool"/>
-            <tool type = "LArThreeDVertexDistanceFeatureTool"/>
-            <tool type = "LArThreeDPCAFeatureTool"/>
-            <tool type = "LArPfoHierarchyFeatureTool"/>
-            <tool type = "LArThreeDOpeningAngleFeatureTool">
-                <HitFraction>0.2</HitFraction>
-            </tool>
-        </FeatureToolsNoChargeInfo>
-        <WriteToTree>false</WriteToTree>
-        <OutputTree>tree</OutputTree>
-        <OutputFile>tree.root</OutputFile>
-    </algorithm>
 
     <!-- Recursively Repeat MopUpAlgorithms -->
     <algorithm type = "LArRecursivePfoMopUp">
@@ -402,15 +376,16 @@
         <OutputVertexListName>DaughterVertices3D</OutputVertexListName>
     </algorithm>
 
+<!--
     <algorithm type = "LArBdtPfoCharacterisation">
         <TrackPfoListName>TrackParticles3D</TrackPfoListName>
         <ShowerPfoListName>ShowerParticles3D</ShowerPfoListName>
         <MCParticleListName>Input</MCParticleListName>
         <CaloHitListName>CaloHitList2D</CaloHitListName>
         <UseThreeDInformation>true</UseThreeDInformation>
-        <MvaFileName>PandoraMVAData/PandoraBdt_PfoCharacterisation_ProtoDUNESP_v03_26_00.xml</MvaFileName>
+        <MvaFileName>PandoraMVAData/PandoraBdt_PfoCharacterisation_DUNEFD_v03_26_00.xml</MvaFileName>
         <MvaName>PfoCharacterisation</MvaName>
-        <MvaFileNameNoChargeInfo>PandoraMVAData/PandoraBdt_PfoCharacterisation_ProtoDUNESP_v03_26_00.xml</MvaFileNameNoChargeInfo>
+        <MvaFileNameNoChargeInfo>PandoraMVAData/PandoraBdt_PfoCharacterisation_DUNEFD_v03_26_00.xml</MvaFileNameNoChargeInfo>
         <MvaNameNoChargeInfo>PfoCharacterisationNoChargeInfo</MvaNameNoChargeInfo>
         <TrainingSetMode>false</TrainingSetMode>
         <TrainingOutputFileName>training_output</TrainingOutputFileName>
@@ -437,7 +412,29 @@
         <OutputTree>tree</OutputTree>
         <OutputFile>tree.root</OutputFile>
     </algorithm>
-
+-->
+    <algorithm type = "LArSvmPfoCharacterisation">
+        <TrackPfoListName>TrackParticles3D</TrackPfoListName>
+        <ShowerPfoListName>ShowerParticles3D</ShowerPfoListName>
+        <UseThreeDInformation>true</UseThreeDInformation>
+        <SvmFileName>PandoraMVAData/PandoraSvm_v03_11_00.xml</SvmFileName>
+        <SvmName>PfoCharacterisation</SvmName>
+        <SvmFileNameNoChargeInfo>PandoraMVAData/PandoraSvm_v03_11_00.xml</SvmFileNameNoChargeInfo>
+        <SvmNameNoChargeInfo>PfoCharacterisationNoChargeInfo</SvmNameNoChargeInfo>
+        <FeatureTools>
+            <tool type = "LArThreeDLinearFitFeatureTool"/>
+            <tool type = "LArThreeDVertexDistanceFeatureTool"/>
+            <tool type = "LArThreeDPCAFeatureTool"/>
+            <tool type = "LArThreeDOpeningAngleFeatureTool"/>
+            <tool type = "LArThreeDChargeFeatureTool"/>
+        </FeatureTools>
+        <FeatureToolsNoChargeInfo>
+            <tool type = "LArThreeDLinearFitFeatureTool"/>
+            <tool type = "LArThreeDVertexDistanceFeatureTool"/>
+            <tool type = "LArThreeDPCAFeatureTool"/>
+            <tool type = "LArThreeDOpeningAngleFeatureTool"/>
+        </FeatureToolsNoChargeInfo>
+    </algorithm>
     <algorithm type = "LArNeutrinoProperties">
         <NeutrinoPfoListName>NeutrinoParticles3D</NeutrinoPfoListName>
     </algorithm>

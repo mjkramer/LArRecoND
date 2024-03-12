@@ -23,7 +23,6 @@
 
     <algorithm type = "LArMasterThreeD">
         <CRSettingsFile>PandoraSettings_Cosmic_Standard.xml</CRSettingsFile>
-        <!--Use MicroBooNE neutrino algorithms for now-->
         <NuSettingsFile>PandoraSettings_Neutrino_ThreeD_Merged.xml</NuSettingsFile>
         <SlicingSettingsFile>PandoraSettings_Slicing_ThreeD_Merged.xml</SlicingSettingsFile>
         <StitchingTools>
@@ -77,6 +76,20 @@
         <ShowCurrentPfos>true</ShowCurrentPfos>
         <ShowDetector>true</ShowDetector>
     </algorithm>
+
+<!-- Old single neutrino event validation
+    <algorithm type = "LArNeutrinoEventValidation">
+        <CaloHitListName>CaloHitList2D</CaloHitListName>
+        <MCParticleListName>Input</MCParticleListName>
+        <PfoListName>RecreatedPfos</PfoListName>
+        <UseTrueNeutrinosOnly>true</UseTrueNeutrinosOnly>
+        <PrintAllToScreen>true</PrintAllToScreen>
+        <PrintMatchingToScreen>true</PrintMatchingToScreen>
+        <WriteToTree>true</WriteToTree>
+        <OutputTree>Validation</OutputTree>
+        <OutputFile>Validation.root</OutputFile>
+    </algorithm>
+-->
 
 </pandora>
 

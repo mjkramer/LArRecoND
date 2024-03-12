@@ -19,7 +19,6 @@
 #include "LArNDContent.h"
 #include "MasterThreeDAlgorithm.h"
 #include "MergeClearTracksThreeDAlgorithm.h"
-//#include "NDValidationAlgorithm.h"
 #include "PfoThreeDHitAssignmentAlgorithm.h"
 #include "PreProcessingThreeDAlgorithm.h"
 #include "ReplaceHitAndClusterListsAlgorithm.h"
@@ -37,7 +36,7 @@
     d("LArReplaceHitAndClusterLists",           ReplaceHitAndClusterListsAlgorithm)                                                \
     d("LArPreProcessingThreeD",                 PreProcessingThreeDAlgorithm)                                                      \
     d("LArCutClusterCharacterisationThreeD",    CutClusterCharacterisationThreeDAlgorithm)                                         \
-    d("LArCandidateVertexCreationThreeD",       CandidateVertexCreationThreeDAlgorithm)                                            \
+    d("LArCandidateVertexCreationThreeD",       CandidateVertexCreationThreeDAlgorithm)
 
 #define LAR_ND_ALGORITHM_TOOL_LIST(d)                                                                                              \
     d("LArEventSlicingThreeD",                  EventSlicingThreeDTool)                                                            \

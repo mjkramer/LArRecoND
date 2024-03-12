@@ -28,6 +28,10 @@
 
 #include "larpandoracontent/LArUtility/PfoMopUpBaseAlgorithm.h"
 
+#ifdef LIBTORCH_DL
+#include "larpandoradlcontent/LArDLContent.h"
+#endif
+
 using namespace pandora;
 
 namespace lar_content
@@ -222,6 +226,10 @@ const Pandora *MasterThreeDAlgorithm::CreateWorkerInstance(
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, LArContent::RegisterAlgorithms(*pPandora));
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, LArContent::RegisterBasicPlugins(*pPandora));
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, LArNDContent::RegisterAlgorithms(*pPandora));
+    // Deep Learning algorithms (e.g. vertexing)
+#ifdef LIBTORCH_DL
+    PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, LArDLContent::RegisterAlgorithms(*pPandora));
+#endif
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::SetPseudoLayerPlugin(*pPandora, new lar_content::LArPseudoLayerPlugin));
     PANDORA_THROW_RESULT_IF(
         STATUS_CODE_SUCCESS, !=, PandoraApi::SetLArTransformationPlugin(*pPandora, new lar_content::LArRotationalTransformationPlugin));
