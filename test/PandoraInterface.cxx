@@ -446,27 +446,27 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
 
         // Create MCParticles from Geant4 trajectories
         MCParticleEnergyMap MCEnergyMap;
-        for (size_t imcp = 0; imcp < larsed.mcp_id->size(); ++imcp)
+        for (size_t imcp = 0; imcp < larsed.m_mcp_id->size(); ++imcp)
         {
-            MCEnergyMap[(*larsed.mcp_id)[imcp]] = (*larsed.mcp_energy)[imcp];
+            MCEnergyMap[(*larsed.m_mcp_id)[imcp]] = (*larsed.m_mcp_energy)[imcp];
         }
         CreateSEDMCParticles(larsed, pPrimaryPandora, parameters);
 
         LArVoxelList voxelList;
 
         // Loop over the energy deposits and create voxels
-        for (size_t ised = 0; ised < larsed.sed_det->size(); ++ised)
+        for (size_t ised = 0; ised < larsed.m_sed_det->size(); ++ised)
         {
-            if ((*larsed.sed_det)[ised] == parameters.m_sensitiveDetName) // usually volTPCActive
+            if ((*larsed.m_sed_det)[ised] == parameters.m_sensitiveDetName) // usually volTPCActive
             {
-                const float startx = (*larsed.sed_startx)[ised];
-                const float starty = (*larsed.sed_starty)[ised];
-                const float startz = (*larsed.sed_startz)[ised];
-                const float endx = (*larsed.sed_endx)[ised];
-                const float endy = (*larsed.sed_endy)[ised];
-                const float endz = (*larsed.sed_endz)[ised];
-                const float energy = (*larsed.sed_energy)[ised] * 1e-3; // sed_energy is in MeV, convert it to GeV
-                const int g4id = std::abs((*larsed.sed_id)[ised]);
+                const float startx = (*larsed.m_sed_startx)[ised];
+                const float starty = (*larsed.m_sed_starty)[ised];
+                const float startz = (*larsed.m_sed_startz)[ised];
+                const float endx = (*larsed.m_sed_endx)[ised];
+                const float endy = (*larsed.m_sed_endy)[ised];
+                const float endz = (*larsed.m_sed_endz)[ised];
+                const float energy = (*larsed.m_sed_energy)[ised] * 1e-3; // sed_energy is in MeV, convert it to GeV
+                const int g4id = std::abs((*larsed.m_sed_id)[ised]);
 
                 const pandora::CartesianVector start(startx, starty, startz);
                 const pandora::CartesianVector end(endx, endy, endz);
@@ -479,7 +479,7 @@ void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimar
             }
         }
 
-        std::cout << "Produced " << voxelList.size() << " voxels from " << larsed.sed_det->size() << " hit segments." << std::endl;
+        std::cout << "Produced " << voxelList.size() << " voxels from " << larsed.m_sed_det->size() << " hit segments." << std::endl;
 
         // Merge voxels with the same IDs
         const LArVoxelList mergedVoxels = MergeSameVoxels(voxelList);
@@ -559,9 +559,9 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
             LArSPMC *larspmc = dynamic_cast<LArSPMC *>(larsp.get());
 
             // Create MCParticles from Geant4 trajectories
-            for (size_t imcp = 0; imcp < larspmc->mcp_id->size(); ++imcp)
+            for (size_t imcp = 0; imcp < larspmc->m_mcp_id->size(); ++imcp)
             {
-                MCEnergyMap[(*larspmc->mcp_id)[imcp]] = (*larspmc->mcp_energy)[imcp];
+                MCEnergyMap[(*larspmc->m_mcp_id)[imcp]] = (*larspmc->m_mcp_energy)[imcp];
             }
             CreateSPMCParticles(*larspmc, pPrimaryPandora, parameters);
         }
@@ -569,10 +569,10 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
         int hitCounter(0);
 
         // Loop over the space points and make them into caloHits
-        for (size_t isp = 0; isp < larsp->x->size(); ++isp)
+        for (size_t isp = 0; isp < larsp->m_x->size(); ++isp)
         {
-            const pandora::CartesianVector voxelPos((*larsp->x)[isp], (*larsp->y)[isp], (*larsp->z)[isp]);
-            const float voxelE = (*larsp->charge)[isp];
+            const pandora::CartesianVector voxelPos((*larsp->m_x)[isp], (*larsp->m_y)[isp], (*larsp->m_z)[isp]);
+            const float voxelE = (*larsp->m_charge)[isp];
             const float MipE = 0.00075;
             const float voxelMipEquivalentE = voxelE / MipE;
             const int tpcID(geom.GetTPCNumber(voxelPos));
@@ -607,9 +607,9 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
             if (parameters.m_dataFormat == Parameters::LArNDFormat::SPMC)
             {
                 LArSPMC *larspmc = dynamic_cast<LArSPMC *>(larsp.get());
-                const std::vector<float> mcContribs = (*larspmc->hit_packetFrac)[isp];
+                const std::vector<float> mcContribs = (*larspmc->m_hit_packetFrac)[isp];
                 const int biggestContribIndex = std::distance(mcContribs.begin(), std::max_element(mcContribs.begin(), mcContribs.end()));
-                trackID = (*larspmc->hit_particleID)[isp][biggestContribIndex];
+                trackID = (*larspmc->m_hit_particleID)[isp][biggestContribIndex];
                 // Due to the merging of hits, the contributions can sometimes add up to more than 1.
                 // Normalise first
                 const float sum = std::accumulate(mcContribs.begin(), mcContribs.end(), 0.f);
@@ -618,7 +618,7 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
                 if (energyFrac > 1.f + std::numeric_limits<float>::epsilon())
                     energyFrac = 1.f;
 
-                if (std::find(larspmc->mcp_id->begin(), larspmc->mcp_id->end(), trackID) == larspmc->mcp_id->end())
+                if (std::find(larspmc->m_mcp_id->begin(), larspmc->m_mcp_id->end(), trackID) == larspmc->m_mcp_id->end())
                     std::cout << "Problem? Could not find MC particle with ID " << trackID << std::endl;
             }
 
@@ -868,24 +868,24 @@ void CreateSEDMCParticles(const LArSED &larsed, const pandora::Pandora *const pP
 
     const int nuidoffset(100000000);
 
-    std::cout << "Read in " << larsed.nuPDG->size() << " true neutrinos" << std::endl;
+    std::cout << "Read in " << larsed.m_nuPDG->size() << " true neutrinos" << std::endl;
 
     // Create MC neutrinos
-    for (size_t i = 0; i < larsed.nuPDG->size(); ++i)
+    for (size_t i = 0; i < larsed.m_nuPDG->size(); ++i)
     {
         const int neutrinoID = nuidoffset + i;
-        const int neutrinoPDG = (*larsed.nuPDG)[i];
-        const std::string reaction = GetNuanceReaction((*larsed.ccnc)[i], (*larsed.mode)[i]);
+        const int neutrinoPDG = (*larsed.m_nuPDG)[i];
+        const std::string reaction = GetNuanceReaction((*larsed.m_ccnc)[i], (*larsed.m_mode)[i]);
         const int nuanceCode = GetNuanceCode(reaction);
 
-        const float nuVtxX = (*larsed.nuvtxx)[i] * parameters.m_lengthScale;
-        const float nuVtxY = (*larsed.nuvtxy)[i] * parameters.m_lengthScale;
-        const float nuVtxZ = (*larsed.nuvtxz)[i] * parameters.m_lengthScale;
+        const float nuVtxX = (*larsed.m_nuvtxx)[i] * parameters.m_lengthScale;
+        const float nuVtxY = (*larsed.m_nuvtxy)[i] * parameters.m_lengthScale;
+        const float nuVtxZ = (*larsed.m_nuvtxz)[i] * parameters.m_lengthScale;
 
-        const float nuE = (*larsed.enu)[i] * parameters.m_energyScale;
-        const float nuPx = nuE * (*larsed.nu_dcosx)[i];
-        const float nuPy = nuE * (*larsed.nu_dcosy)[i];
-        const float nuPz = nuE * (*larsed.nu_dcosz)[i];
+        const float nuE = (*larsed.m_enu)[i] * parameters.m_energyScale;
+        const float nuPx = nuE * (*larsed.m_nu_dcosx)[i];
+        const float nuPy = nuE * (*larsed.m_nu_dcosy)[i];
+        const float nuPz = nuE * (*larsed.m_nu_dcosz)[i];
 
         lar_content::LArMCParticleParameters mcNeutrinoParameters;
         mcNeutrinoParameters.m_nuanceCode = nuanceCode;
@@ -905,42 +905,42 @@ void CreateSEDMCParticles(const LArSED &larsed, const pandora::Pandora *const pP
     }
 
     // Create MC particles
-    for (size_t i = 0; i < larsed.mcp_id->size(); ++i)
+    for (size_t i = 0; i < larsed.m_mcp_id->size(); ++i)
     {
         // LArMCParticle parameters
         lar_content::LArMCParticleParameters mcParticleParameters;
 
         // Initial momentum and energy in GeV
-        const float px = (*larsed.mcp_px)[i] * parameters.m_energyScale;
-        const float py = (*larsed.mcp_py)[i] * parameters.m_energyScale;
-        const float pz = (*larsed.mcp_pz)[i] * parameters.m_energyScale;
-        const float energy = (*larsed.mcp_energy)[i] * parameters.m_energyScale;
+        const float px = (*larsed.m_mcp_px)[i] * parameters.m_energyScale;
+        const float py = (*larsed.m_mcp_py)[i] * parameters.m_energyScale;
+        const float pz = (*larsed.m_mcp_pz)[i] * parameters.m_energyScale;
+        const float energy = (*larsed.m_mcp_energy)[i] * parameters.m_energyScale;
         mcParticleParameters.m_energy = energy;
         mcParticleParameters.m_momentum = pandora::CartesianVector(px, py, pz);
 
         // Particle codes
-        mcParticleParameters.m_particleId = (*larsed.mcp_pdg)[i];
+        mcParticleParameters.m_particleId = (*larsed.m_mcp_pdg)[i];
         mcParticleParameters.m_mcParticleType = pandora::MC_3D;
 
         // Neutrino info
-        const int nuid = (*larsed.mcp_nuid)[i];
+        const int nuid = (*larsed.m_mcp_nuid)[i];
         const int neutrinoID = nuid + nuidoffset;
-        const std::string reaction = GetNuanceReaction((*larsed.ccnc)[nuid], (*larsed.mode)[nuid]);
+        const std::string reaction = GetNuanceReaction((*larsed.m_ccnc)[nuid], (*larsed.m_mode)[nuid]);
         mcParticleParameters.m_nuanceCode = GetNuanceCode(reaction);
 
         // Set unique parent integer address using trackID
-        const int trackID = (*larsed.mcp_id)[i];
+        const int trackID = (*larsed.m_mcp_id)[i];
         mcParticleParameters.m_pParentAddress = (void *)((intptr_t)trackID);
 
         // Start and end points in cm
-        const float startx = (*larsed.mcp_startx)[i] * parameters.m_lengthScale;
-        const float starty = (*larsed.mcp_starty)[i] * parameters.m_lengthScale;
-        const float startz = (*larsed.mcp_startz)[i] * parameters.m_lengthScale;
+        const float startx = (*larsed.m_mcp_startx)[i] * parameters.m_lengthScale;
+        const float starty = (*larsed.m_mcp_starty)[i] * parameters.m_lengthScale;
+        const float startz = (*larsed.m_mcp_startz)[i] * parameters.m_lengthScale;
         mcParticleParameters.m_vertex = pandora::CartesianVector(startx, starty, startz);
 
-        const float endx = (*larsed.mcp_endx)[i] * parameters.m_lengthScale;
-        const float endy = (*larsed.mcp_endy)[i] * parameters.m_lengthScale;
-        const float endz = (*larsed.mcp_endz)[i] * parameters.m_lengthScale;
+        const float endx = (*larsed.m_mcp_endx)[i] * parameters.m_lengthScale;
+        const float endy = (*larsed.m_mcp_endy)[i] * parameters.m_lengthScale;
+        const float endz = (*larsed.m_mcp_endz)[i] * parameters.m_lengthScale;
         mcParticleParameters.m_endpoint = pandora::CartesianVector(endx, endy, endz);
 
         // Process ID
@@ -951,7 +951,7 @@ void CreateSEDMCParticles(const LArSED &larsed, const pandora::Pandora *const pP
             pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcParticleParameters, mcParticleFactory));
 
         // Set parent relationships
-        const int parentID = (*larsed.mcp_mother)[i];
+        const int parentID = (*larsed.m_mcp_mother)[i];
 
         if (parentID == 0) // link to mc neutrino
         {
@@ -974,27 +974,27 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
 
     const int nuidoffset(100000000);
 
-    std::cout << "Read in " << larspmc.nuPDG->size() << " true neutrinos" << std::endl;
+    std::cout << "Read in " << larspmc.m_nuPDG->size() << " true neutrinos" << std::endl;
 
     std::map<int, int> neutrinoIdToIndex;
 
     // Create MC neutrinos
-    for (size_t i = 0; i < larspmc.nuPDG->size(); ++i)
+    for (size_t i = 0; i < larspmc.m_nuPDG->size(); ++i)
     {
-        const int neutrinoID = nuidoffset + (*larspmc.nuID)[i];
+        const int neutrinoID = nuidoffset + (*larspmc.m_nuID)[i];
         neutrinoIdToIndex[neutrinoID] = i;
 
-        const int neutrinoPDG = (*larspmc.nuPDG)[i];
-        const std::string reaction = GetNuanceReaction((*larspmc.ccnc)[i], (*larspmc.mode)[i]);
+        const int neutrinoPDG = (*larspmc.m_nuPDG)[i];
+        const std::string reaction = GetNuanceReaction((*larspmc.m_ccnc)[i], (*larspmc.m_mode)[i]);
         const int nuanceCode = GetNuanceCode(reaction);
-        const float nuVtxX = (*larspmc.nuvtxx)[i] * parameters.m_lengthScale;
-        const float nuVtxY = (*larspmc.nuvtxy)[i] * parameters.m_lengthScale;
-        const float nuVtxZ = (*larspmc.nuvtxz)[i] * parameters.m_lengthScale;
+        const float nuVtxX = (*larspmc.m_nuvtxx)[i] * parameters.m_lengthScale;
+        const float nuVtxY = (*larspmc.m_nuvtxy)[i] * parameters.m_lengthScale;
+        const float nuVtxZ = (*larspmc.m_nuvtxz)[i] * parameters.m_lengthScale;
 
-        const float nuE = (*larspmc.nue)[i] * parameters.m_energyScale;
-        const float nuPx = (*larspmc.nupx)[i];
-        const float nuPy = (*larspmc.nupy)[i];
-        const float nuPz = (*larspmc.nupz)[i];
+        const float nuE = (*larspmc.m_nue)[i] * parameters.m_energyScale;
+        const float nuPx = (*larspmc.m_nupx)[i];
+        const float nuPy = (*larspmc.m_nupy)[i];
+        const float nuPz = (*larspmc.m_nupz)[i];
 
         lar_content::LArMCParticleParameters mcNeutrinoParameters;
         mcNeutrinoParameters.m_nuanceCode = nuanceCode;
@@ -1014,44 +1014,44 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
     }
 
     // Create MC particles
-    for (size_t i = 0; i < larspmc.mcp_id->size(); ++i)
+    for (size_t i = 0; i < larspmc.m_mcp_id->size(); ++i)
     {
         // LArMCParticle parameters
         lar_content::LArMCParticleParameters mcParticleParameters;
 
         // Initial momentum and energy in GeV
-        const float px = (*larspmc.mcp_px)[i] * parameters.m_energyScale;
-        const float py = (*larspmc.mcp_py)[i] * parameters.m_energyScale;
-        const float pz = (*larspmc.mcp_pz)[i] * parameters.m_energyScale;
-        const float energy = (*larspmc.mcp_energy)[i] * parameters.m_energyScale;
+        const float px = (*larspmc.m_mcp_px)[i] * parameters.m_energyScale;
+        const float py = (*larspmc.m_mcp_py)[i] * parameters.m_energyScale;
+        const float pz = (*larspmc.m_mcp_pz)[i] * parameters.m_energyScale;
+        const float energy = (*larspmc.m_mcp_energy)[i] * parameters.m_energyScale;
         mcParticleParameters.m_energy = energy;
         mcParticleParameters.m_momentum = pandora::CartesianVector(px, py, pz);
 
         // Particle codes
-        mcParticleParameters.m_particleId = (*larspmc.mcp_pdg)[i];
+        mcParticleParameters.m_particleId = (*larspmc.m_mcp_pdg)[i];
         mcParticleParameters.m_mcParticleType = pandora::MC_3D;
 
         // Neutrino info
-        const int nuid = (*larspmc.mcp_nuid)[i];
+        const int nuid = (*larspmc.m_mcp_nuid)[i];
         const int neutrinoID = nuid + nuidoffset;
         const int nuIndex = neutrinoIdToIndex[neutrinoID];
-        const std::string reaction = GetNuanceReaction((*larspmc.ccnc)[nuIndex], (*larspmc.mode)[nuIndex]);
+        const std::string reaction = GetNuanceReaction((*larspmc.m_ccnc)[nuIndex], (*larspmc.m_mode)[nuIndex]);
         mcParticleParameters.m_nuanceCode = GetNuanceCode(reaction);
 
         // Set unique parent integer address using trackID
-        const int trackID = (*larspmc.mcp_id)[i];
+        const int trackID = (*larspmc.m_mcp_id)[i];
         mcParticleParameters.m_pParentAddress = (void *)((intptr_t)trackID);
 
         // std::cout << "MCParticle " << trackID << " linked to neutrino " <<
         // neutrinoID << std::endl; Start and end points in cm
-        const float startx = (*larspmc.mcp_startx)[i] * parameters.m_lengthScale;
-        const float starty = (*larspmc.mcp_starty)[i] * parameters.m_lengthScale;
-        const float startz = (*larspmc.mcp_startz)[i] * parameters.m_lengthScale;
+        const float startx = (*larspmc.m_mcp_startx)[i] * parameters.m_lengthScale;
+        const float starty = (*larspmc.m_mcp_starty)[i] * parameters.m_lengthScale;
+        const float startz = (*larspmc.m_mcp_startz)[i] * parameters.m_lengthScale;
         mcParticleParameters.m_vertex = pandora::CartesianVector(startx, starty, startz);
 
-        const float endx = (*larspmc.mcp_endx)[i] * parameters.m_lengthScale;
-        const float endy = (*larspmc.mcp_endy)[i] * parameters.m_lengthScale;
-        const float endz = (*larspmc.mcp_endz)[i] * parameters.m_lengthScale;
+        const float endx = (*larspmc.m_mcp_endx)[i] * parameters.m_lengthScale;
+        const float endy = (*larspmc.m_mcp_endy)[i] * parameters.m_lengthScale;
+        const float endz = (*larspmc.m_mcp_endz)[i] * parameters.m_lengthScale;
         mcParticleParameters.m_endpoint = pandora::CartesianVector(endx, endy, endz);
 
         // Process ID
@@ -1062,7 +1062,7 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
             pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcParticleParameters, mcParticleFactory));
 
         // Set parent relationships
-        const int parentID = (*larspmc.mcp_mother)[i];
+        const int parentID = (*larspmc.m_mcp_mother)[i];
 
         if (parentID == -1) // link to mc neutrino
         {

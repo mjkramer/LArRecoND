@@ -50,39 +50,39 @@ public:
      */
     virtual void Init(TTree *tree);
 
-    TTree *fChain;  ///< pointer to the analyzed TTree or TChain
-    Int_t fCurrent; ///< current Tree number in a TChain
+    TTree *m_fChain;  ///< pointer to the analyzed TTree or TChain
+    Int_t m_fCurrent; ///< current Tree number in a TChain
 
     // Declaration of leaf types
-    Int_t event;
-    Int_t subrun;
-    Int_t run;
-    Int_t event_start_t;
-    Int_t event_end_t;
-    std::vector<float> *x;
-    std::vector<float> *y;
-    std::vector<float> *z;
-    std::vector<float> *ts;
-    std::vector<float> *charge;
-    std::vector<float> *E;
+    Int_t m_event;
+    Int_t m_subrun;
+    Int_t m_run;
+    Int_t m_event_start_t;
+    Int_t m_event_end_t;
+    std::vector<float> *m_x = nullptr;
+    std::vector<float> *m_y = nullptr;
+    std::vector<float> *m_z = nullptr;
+    std::vector<float> *m_ts = nullptr;
+    std::vector<float> *m_charge = nullptr;
+    std::vector<float> *m_E = nullptr;
 
     // List of branches
-    TBranch *b_eventID;
-    TBranch *b_subrun;
-    TBranch *b_run;
-    TBranch *b_event_start_t;
-    TBranch *b_event_end_t;
-    TBranch *b_x;
-    TBranch *b_y;
-    TBranch *b_z;
-    TBranch *b_ts;
-    TBranch *b_charge;
-    TBranch *b_E;
+    TBranch *m_b_eventID = nullptr;
+    TBranch *m_b_subrun = nullptr;
+    TBranch *m_b_run = nullptr;
+    TBranch *m_b_event_start_t = nullptr;
+    TBranch *m_b_event_end_t = nullptr;
+    TBranch *m_b_x = nullptr;
+    TBranch *m_b_y = nullptr;
+    TBranch *m_b_z = nullptr;
+    TBranch *m_b_ts = nullptr;
+    TBranch *m_b_charge = nullptr;
+    TBranch *m_b_E = nullptr;
 };
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-LArSP::LArSP(TTree *tree) : fChain(nullptr)
+LArSP::LArSP(TTree *tree) : m_fChain(nullptr)
 {
     // if parameter tree is not specified (or zero), connect the file
     // used to generate this class and read the Tree.
@@ -102,9 +102,9 @@ LArSP::LArSP(TTree *tree) : fChain(nullptr)
 
 LArSP::~LArSP()
 {
-    if (!fChain)
+    if (!m_fChain)
         return;
-    delete fChain->GetCurrentFile();
+    delete m_fChain->GetCurrentFile();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -112,9 +112,9 @@ LArSP::~LArSP()
 Int_t LArSP::GetEntry(Long64_t entry)
 {
     // Read contents of entry.
-    if (!fChain)
+    if (!m_fChain)
         return 0;
-    return fChain->GetEntry(entry);
+    return m_fChain->GetEntry(entry);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -129,31 +129,24 @@ void LArSP::Init(TTree *tree)
     // Init() will be called many times when running on PROOF
     // (once per file to be processed).
 
-    // Set object pointer
-    x = nullptr;
-    y = nullptr;
-    z = nullptr;
-    ts = nullptr;
-    charge = nullptr;
-    E = nullptr;
     // Set branch addresses and branch pointers
     if (!tree)
         return;
-    fChain = tree;
-    fCurrent = -1;
-    fChain->SetMakeClass(1);
+    m_fChain = tree;
+    m_fCurrent = -1;
+    m_fChain->SetMakeClass(1);
 
-    fChain->SetBranchAddress("event", &event, &b_eventID);
-    fChain->SetBranchAddress("subrun", &subrun, &b_subrun);
-    fChain->SetBranchAddress("run", &run, &b_run);
-    fChain->SetBranchAddress("event_start_t", &event_start_t, &b_event_start_t);
-    fChain->SetBranchAddress("event_end_t", &event_end_t, &b_event_end_t);
-    fChain->SetBranchAddress("x", &x, &b_x);
-    fChain->SetBranchAddress("y", &y, &b_y);
-    fChain->SetBranchAddress("z", &z, &b_z);
-    fChain->SetBranchAddress("ts", &ts, &b_ts);
-    fChain->SetBranchAddress("charge", &charge, &b_charge);
-    fChain->SetBranchAddress("E", &E, &b_E);
+    m_fChain->SetBranchAddress("event", &m_event, &m_b_eventID);
+    m_fChain->SetBranchAddress("subrun", &m_subrun, &m_b_subrun);
+    m_fChain->SetBranchAddress("run", &m_run, &m_b_run);
+    m_fChain->SetBranchAddress("event_start_t", &m_event_start_t, &m_b_event_start_t);
+    m_fChain->SetBranchAddress("event_end_t", &m_event_end_t, &m_b_event_end_t);
+    m_fChain->SetBranchAddress("x", &m_x, &m_b_x);
+    m_fChain->SetBranchAddress("y", &m_y, &m_b_y);
+    m_fChain->SetBranchAddress("z", &m_z, &m_b_z);
+    m_fChain->SetBranchAddress("ts", &m_ts, &m_b_ts);
+    m_fChain->SetBranchAddress("charge", &m_charge, &m_b_charge);
+    m_fChain->SetBranchAddress("E", &m_E, &m_b_E);
 }
 
 } // end namespace lar_nd_reco

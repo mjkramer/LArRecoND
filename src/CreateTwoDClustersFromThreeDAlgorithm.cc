@@ -120,8 +120,6 @@ StatusCode CreateTwoDClustersFromThreeDAlgorithm::Run()
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraContentApi::SaveList<Cluster>(*this, m_outputClusterListNames.at(2)));
 
     return STATUS_CODE_SUCCESS;
-
-    return STATUS_CODE_SUCCESS;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

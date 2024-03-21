@@ -62,7 +62,6 @@ bool MergeClearTracksThreeDAlgorithm::FindMerges(const ClusterList *const pClust
     ClusterMergeMap mergeCandidates;
     ClusterFloatMap mergeClosestDistance;
 
-    //    std::cout << "Looking for merges between " << sortedClusters.size() << " track-like clusters" << std::endl;
     for (ClusterVector::iterator iter1 = sortedClusters.begin(); iter1 != sortedClusters.end(); ++iter1)
     {
         for (ClusterVector::iterator iter2 = iter1 + 1; iter2 != sortedClusters.end(); ++iter2)
@@ -79,7 +78,6 @@ bool MergeClearTracksThreeDAlgorithm::FindMerges(const ClusterList *const pClust
         {
             if (!usedClusters.count(pair.second) && !usedClusters.count(pair.first))
             {
-                //                std::cout << "Merging clusters: " << pair.first << " and " << pair.second << std::endl;
                 this->MergeClusters(pair.first, pair.second);
                 usedClusters.insert(pair.first);
                 usedClusters.insert(pair.second);
@@ -113,9 +111,6 @@ void MergeClearTracksThreeDAlgorithm::CanMergeClusters(const Cluster *const pLar
         const CartesianVector &largeClusterDirection(largeClusterVertex.GetDirection());
         const CartesianVector &smallClusterDirection(smallClusterVertex.GetDirection());
         const float cosAngle = largeClusterDirection.GetCosOpeningAngle(smallClusterDirection * -1.0);
-
-        //        std::cout << pLargeCluster << " " << pSmallCluster << " :: Longitudinal gap = " << longitudinalGap << ", transverse gap = "
-        //                  << transverseGap << " and angle = " << cosAngle << std::endl;
 
         if (longitudinalGap <= m_maxGapLengthCut && transverseGap <= m_maxGapTransverseCut && cosAngle >= m_minCosThetaCut)
         {
