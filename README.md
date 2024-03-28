@@ -100,12 +100,40 @@ inside the ROOT input file (`-e`). The geometry is set by the ROOT file specifie
 with the physical placement geometry (`-v`) and sensitive (`-d`) detector names that belong to the
 [TGeoManager](https://root.cern.ch/doc/master/classTGeoManager.html) object (`-t`) called `Default`.
 
+## Fermigrid jobs
+
+The template python script [createFNALJobs.py](createFNALJobs.py) can be used to submit LArRecoND jobs
+on the [Fermigrid](https://dune.github.io/computing-basics/07-grid-job-submission/index.html) batch system.
+
+It has example settings for submitting edep-sim and MiniRun4 reconstruction jobs, and it should be
+relatively straightforward to extend or modify it to deal with other event samples. It uses objects
+to define the setup, geometry and reconstruction parameters, which change depending on the number and
+format of the sample input files. The required Pandora packages and xml steering files are stored in a tarball
+by the script, which is then used by each reconstruction job, along with a copy of the input data file.
+The job directories use the `/pnfs/dune/scratch/users/$USER` area, which is visible to all of the batch nodes.
+Each job copies the tarball and input file to its own temporary directory area, extracts the tarball, then runs
+the LArRecoND executable and copies the output files to the appropriate `/pnfs/dune/scratch/users/$USER` area.
+It is recommended that the completed job output files are first copied from the scratch area to a directory in
+the `/exp/dune/data/users/$USER` data area before they are used for analysis.
+
+As an example, the following will submit reconstruction jobs for a sample of MiniRun4 input files:
+
+```Shell
+python createFNALJobs.py --option MiniRun4
+source runJobs_MiniRun4.sh
+```
+
+The job run file created by the python script depends on the sample option and the number of input files.
+Separate job run files are also made for each sample, which can be sourced individually to split up the
+job submission process.
+
+
+## License and Copyright
 
 LArRecoND is distributed under the [GPLv3 License](http://www.gnu.org/licenses/gpl-3.0.en.html)
 
 [![License](https://www.gnu.org/graphics/gplv3-127x51.png)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
-## License and Copyright
 Copyright (C), LArRecoND Authors
 
 LArRecoND is free software: you can redistribute it and/or modify
