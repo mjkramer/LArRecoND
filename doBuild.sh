@@ -82,7 +82,7 @@ cd LArRecoND
 git checkout master
 mkdir build
 cd build
-# Need to specify LArContent, LArDLContent, Geant4, ROOT & edep-sim. May also need librotch & protobuf:
+# Need to specify LArContent, LArDLContent, Geant4, ROOT & edep-sim. May also need libtorch & protobuf:
 #-DCMAKE_PREFIX_PATH="/cvmfs/larsoft.opensciencegrid.org/products/libtorch/v1_6_0d/Linux64bit+3.10-2.17-e20/share/cmake;/cvmfs/larsoft.opensciencegrid.org/products/protobuf/v3_12_3a/Linux64bit+3.10-2.17-e20/lib/cmake/protobuf"
 
 cmake -DCMAKE_MODULE_PATH="$MY_TEST_AREA/PandoraPFA/cmakemodules;$ROOTSYS/etc/cmake" \
