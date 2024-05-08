@@ -972,6 +972,7 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
 {
     lar_content::LArMCParticleFactory mcParticleFactory;
 
+    // Offset neutrino IDs by 10^8
     const int nuidoffset(100000000);
 
     std::cout << "Read in " << larspmc.m_nuPDG->size() << " true neutrinos" << std::endl;
@@ -1038,12 +1039,17 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
         const std::string reaction = GetNuanceReaction((*larspmc.m_ccnc)[nuIndex], (*larspmc.m_mode)[nuIndex]);
         mcParticleParameters.m_nuanceCode = GetNuanceCode(reaction);
 
-        // Set unique parent integer address using trackID
-        const int trackID = (*larspmc.m_mcp_id)[i];
+        // Set unique parent integer address using trackID. Need to add a large enough
+        // offset of 10^6 to make these unique when we have more than 1 neutrino per event.
+        // The mcp_id's reset (to zero) per neutrino interaction vertex, and the offset
+        // should allow up to 10^6 hits for each neutrino. The true neutrino IDs (nuID)
+        // found earlier are offset by 10^8, which should allow unique trackID's for up to
+        // 100 neutrino interactions per event, each containing up to 10^6 hits
+        const int offsetID = 1000000 * nuIndex;
+        const int trackID = (*larspmc.m_mcp_id)[i] + offsetID;
         mcParticleParameters.m_pParentAddress = (void *)((intptr_t)trackID);
 
-        // std::cout << "MCParticle " << trackID << " linked to neutrino " <<
-        // neutrinoID << std::endl; Start and end points in cm
+        // Start and end points in cm
         const float startx = (*larspmc.m_mcp_startx)[i] * parameters.m_lengthScale;
         const float starty = (*larspmc.m_mcp_starty)[i] * parameters.m_lengthScale;
         const float startz = (*larspmc.m_mcp_startz)[i] * parameters.m_lengthScale;
@@ -1062,7 +1068,9 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
             pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcParticleParameters, mcParticleFactory));
 
         // Set parent relationships
-        const int parentID = (*larspmc.m_mcp_mother)[i];
+        const int mcpMother = (*larspmc.m_mcp_mother)[i];
+        // Add offsetID to particles that are not the primary neutrinos
+        const int parentID = mcpMother == -1 ? -1 : mcpMother + offsetID;
 
         if (parentID == -1) // link to mc neutrino
         {
@@ -1973,8 +1981,8 @@ void ProcessFormatOption(const std::string &formatOption, const std::string &inp
             parameters.m_dataFormat = Parameters::LArNDFormat::SPMC;
         // Set the geometry file name
         parameters.m_geomFileName = geomFileName;
-        // All lengths are in mm, so we need to convert them to cm
-        parameters.m_lengthScale = parameters.m_mm2cm;
+        // All lengths are already in cm, so don't rescale
+        parameters.m_lengthScale = 1.0f;
         // All energies are already in GeV, so don't rescale
         parameters.m_energyScale = 1.0f;
         // Set expected input TTree name for space point data
