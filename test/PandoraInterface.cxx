@@ -46,6 +46,7 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
 #include <getopt.h>
 #include <iostream>
 #include <memory>
@@ -571,9 +572,21 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
         // Loop over the space points and make them into caloHits
         for (size_t isp = 0; isp < larsp->m_x->size(); ++isp)
         {
-            const pandora::CartesianVector voxelPos((*larsp->m_x)[isp], (*larsp->m_y)[isp], (*larsp->m_z)[isp]);
+            const float voxelX = (*larsp->m_x)[isp];
+            const float voxelY = (*larsp->m_y)[isp];
+            const float voxelZ = (*larsp->m_z)[isp];
             const float voxelE = (*larsp->m_charge)[isp];
-            const float MipE = 0.00075;
+
+            // Skip this hit if its coordinates or energy are NaNs
+            if (std::isnan(voxelX) || std::isnan(voxelY) || std::isnan(voxelZ) || std::isnan(voxelE))
+            {
+                std::cout << "Ignoring hit " << isp << " which contains NaNs: (" << voxelX << ", " << voxelY << ", " << voxelZ
+                          << "), E = " << voxelE << std::endl;
+                continue;
+            }
+
+            const pandora::CartesianVector voxelPos(voxelX, voxelY, voxelZ);
+            const float MipE{0.00075};
             const float voxelMipEquivalentE = voxelE / MipE;
             const int tpcID(geom.GetTPCNumber(voxelPos));
             lar_content::LArCaloHitParameters caloHitParameters;
@@ -972,6 +985,7 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
 {
     lar_content::LArMCParticleFactory mcParticleFactory;
 
+    // Offset neutrino IDs by 10^8
     const int nuidoffset(100000000);
 
     std::cout << "Read in " << larspmc.m_nuPDG->size() << " true neutrinos" << std::endl;
@@ -1013,6 +1027,9 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
             pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcNeutrinoParameters, mcParticleFactory));
     }
 
+    // Specify maximum mcpID for hits in a given event to ensure unique trackIDs: 10^6
+    const int max_mcpID{1000000};
+
     // Create MC particles
     for (size_t i = 0; i < larspmc.m_mcp_id->size(); ++i)
     {
@@ -1038,12 +1055,33 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
         const std::string reaction = GetNuanceReaction((*larspmc.m_ccnc)[nuIndex], (*larspmc.m_mode)[nuIndex]);
         mcParticleParameters.m_nuanceCode = GetNuanceCode(reaction);
 
-        // Set unique parent integer address using trackID
-        const int trackID = (*larspmc.m_mcp_id)[i];
+        // Set unique parent integer address using trackID. Need to add a large enough
+        // offset of 10^6 to make these unique when we have more than 1 neutrino per event.
+        // The mcp_id's reset (to zero) per neutrino interaction vertex, and the offset
+        // should allow up to 10^6 hits for each neutrino. The true neutrino IDs (nuID)
+        // found earlier are offset by 10^8, which should allow unique trackID's for up to
+        // 100 neutrino interactions per event, each containing up to 10^6 hits
+
+        // Make sure mcpID is not equal to or larger than the max_mcpID offset (10^6)
+        const int mcpID = (*larspmc.m_mcp_id)[i];
+        if (mcpID >= max_mcpID)
+        {
+            std::cout << "Ignoring hit " << i << " with mcpID >= " << max_mcpID << std::endl;
+            continue;
+        }
+
+        const int offsetID = max_mcpID * nuIndex;
+        const int trackID = mcpID + offsetID;
+        // Make sure trackID is not equal to or larger than nuidoffset (10^8)
+        if (trackID >= nuidoffset)
+        {
+            std::cout << "Ignoring hit " << i << " with trackID " << trackID << " >= " << nuidoffset << std::endl;
+            continue;
+        }
+
         mcParticleParameters.m_pParentAddress = (void *)((intptr_t)trackID);
 
-        // std::cout << "MCParticle " << trackID << " linked to neutrino " <<
-        // neutrinoID << std::endl; Start and end points in cm
+        // Start and end points in cm
         const float startx = (*larspmc.m_mcp_startx)[i] * parameters.m_lengthScale;
         const float starty = (*larspmc.m_mcp_starty)[i] * parameters.m_lengthScale;
         const float startz = (*larspmc.m_mcp_startz)[i] * parameters.m_lengthScale;
@@ -1058,11 +1096,21 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
         mcParticleParameters.m_process = lar_content::MC_PROC_UNKNOWN;
 
         // Create MCParticle
-        PANDORA_THROW_RESULT_IF(
-            pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcParticleParameters, mcParticleFactory));
+        try
+        {
+            PANDORA_THROW_RESULT_IF(
+                pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcParticleParameters, mcParticleFactory));
+        }
+        catch (const pandora::StatusCodeException &)
+        {
+            std::cout << "Unable to create MCParticle " << i << " : invalid info supplied, e.g. non-unique trackID or NaNs" << std::endl;
+            continue;
+        }
 
         // Set parent relationships
-        const int parentID = (*larspmc.m_mcp_mother)[i];
+        const int mcpMother = (*larspmc.m_mcp_mother)[i];
+        // Add offsetID to particles that are not the primary neutrinos
+        const int parentID = mcpMother == -1 ? mcpMother : (mcpMother + offsetID);
 
         if (parentID == -1) // link to mc neutrino
         {
@@ -1973,8 +2021,8 @@ void ProcessFormatOption(const std::string &formatOption, const std::string &inp
             parameters.m_dataFormat = Parameters::LArNDFormat::SPMC;
         // Set the geometry file name
         parameters.m_geomFileName = geomFileName;
-        // All lengths are in mm, so we need to convert them to cm
-        parameters.m_lengthScale = parameters.m_mm2cm;
+        // All lengths are already in cm, so don't rescale
+        parameters.m_lengthScale = 1.0f;
         // All energies are already in GeV, so don't rescale
         parameters.m_energyScale = 1.0f;
         // Set expected input TTree name for space point data
