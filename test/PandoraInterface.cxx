@@ -15,7 +15,9 @@
 #include "TGeoShape.h"
 #include "TGeoVolume.h"
 
+#ifdef USE_EDEPSIM
 #include "TG4PrimaryVertex.h"
+#endif
 
 #include "Api/PandoraApi.h"
 #include "Geometry/LArTPC.h"
@@ -275,234 +277,20 @@ void MakePandoraTPC(const pandora::Pandora *const pPrimaryPandora, const Paramet
 
 void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom)
 {
-    if (parameters.m_dataFormat == Parameters::LArNDFormat::SED)
+    if (parameters.m_dataFormat == Parameters::LArNDFormat::EDepSim)
+    {
+#ifdef USE_EDEPSIM
+        ProcessEDepSimEvents(parameters, pPrimaryPandora, geom);
+#endif
+    }
+    else if (parameters.m_dataFormat == Parameters::LArNDFormat::SED)
     {
         ProcessSEDEvents(parameters, pPrimaryPandora, geom);
     }
-    else if (parameters.m_dataFormat == Parameters::LArNDFormat::SP || parameters.m_dataFormat == Parameters::LArNDFormat::SPMC)
+    else
     {
         ProcessSPEvents(parameters, pPrimaryPandora, geom);
     }
-    else
-    {
-        ProcessEDepSimEvents(parameters, pPrimaryPandora, geom);
-    }
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom)
-{
-
-    TFile *fileSource = TFile::Open(parameters.m_inputFileName.c_str(), "READ");
-    if (!fileSource)
-    {
-        std::cout << "Error in ProcessEDepSimEvents(): can't open file " << parameters.m_inputFileName << std::endl;
-        return;
-    }
-
-    TTree *pEDepSimTree = dynamic_cast<TTree *>(fileSource->Get(parameters.m_inputTreeName.c_str()));
-    if (!pEDepSimTree)
-    {
-        std::cout << "Could not find the event tree " << parameters.m_inputTreeName << std::endl;
-        fileSource->Close();
-        return;
-    }
-
-    TG4Event *pEDepSimEvent(nullptr);
-    pEDepSimTree->SetBranchAddress("Event", &pEDepSimEvent);
-
-    // Factory for creating LArCaloHits
-    lar_content::LArCaloHitFactory m_larCaloHitFactory;
-
-    const LArGrid grid = parameters.m_useModularGeometry ? MakeVoxelisationGrid(geom, parameters) : MakeVoxelisationGrid(pPrimaryPandora, parameters);
-
-    std::cout << "Total grid volume: bot = " << grid.m_bottom << "\n top = " << grid.m_top << std::endl;
-    std::cout << "Making voxels with size " << grid.m_binWidths << std::endl;
-
-    // Total number of entries in the TTree
-    const int nEntries(pEDepSimTree->GetEntries());
-
-    // Starting event
-    const int startEvt = parameters.m_nEventsToSkip > 0 ? parameters.m_nEventsToSkip : 0;
-    // Number of events to process, up to nEntries
-    const int nProcess = parameters.m_nEventsToProcess > 0 ? parameters.m_nEventsToProcess : nEntries;
-    // End event, up to nEntries
-    const int endEvt = (startEvt + nProcess) < nEntries ? startEvt + nProcess : nEntries;
-
-    std::cout << "Start event is " << startEvt << " and end event is " << endEvt - 1 << std::endl;
-
-    for (int iEvt = startEvt; iEvt < endEvt; iEvt++)
-    {
-        if (parameters.m_shouldDisplayEventNumber)
-            std::cout << std::endl << "   PROCESSING EVENT: " << iEvt << std::endl << std::endl;
-
-        pEDepSimTree->GetEntry(iEvt);
-
-        if (!pEDepSimEvent)
-            return;
-
-        // Create MCParticles from Geant4 trajectories
-        const MCParticleEnergyMap MCEnergyMap = CreateEDepSimMCParticles(*pEDepSimEvent, pPrimaryPandora, parameters);
-
-        int hitCounter{0};
-
-        // Loop over (EDep) hits, which are stored in the hit segment detectors.
-        // Only process hits from the detector we are interested in
-        for (TG4HitSegmentDetectors::iterator detector = pEDepSimEvent->SegmentDetectors.begin();
-             detector != pEDepSimEvent->SegmentDetectors.end(); ++detector)
-        {
-            if (detector->first.find(parameters.m_sensitiveDetName) == std::string::npos)
-            {
-                std::cout << "Skipping sensitive detector " << detector->first << "; expecting " << parameters.m_sensitiveDetName << std::endl;
-                continue;
-            }
-
-            std::cout << "Show hits for " << detector->first << " (" << detector->second.size() << " hits)" << std::endl;
-            std::cout << "                                 " << std::endl;
-
-            LArVoxelList voxelList;
-
-            // Loop over hit segments and create voxels from them
-            for (TG4HitSegment &g4Hit : detector->second)
-            {
-                const LArHitInfo hitInfo(g4Hit, parameters.m_lengthScale, parameters.m_energyScale);
-                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters, geom);
-
-                for (const LArVoxel &voxel : currentVoxelList)
-                    voxelList.emplace_back(voxel);
-            }
-
-            std::cout << "Produced " << voxelList.size() << " voxels from " << detector->second.size() << " hit segments." << std::endl;
-
-            // Merge voxels with the same IDs
-            const LArVoxelList mergedVoxels = MergeSameVoxels(voxelList);
-
-            std::cout << "Produced " << mergedVoxels.size() << " merged voxels from " << voxelList.size() << " voxels." << std::endl;
-            voxelList.clear();
-
-            // Stop processing the event if we have too many voxels: reco takes too long
-            if (parameters.m_maxMergedVoxels > 0 && mergedVoxels.size() > parameters.m_maxMergedVoxels)
-            {
-                std::cout << "SKIPPING EVENT: number of merged voxels " << mergedVoxels.size() << " > " << parameters.m_maxMergedVoxels << std::endl;
-                break;
-            }
-
-            MakeCaloHitsFromVoxels(mergedVoxels, MCEnergyMap, pPrimaryPandora, parameters, hitCounter);
-        } // end segment detector loop
-
-        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
-        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
-    }
-
-    // Close input file
-    fileSource->Close();
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom)
-{
-    std::cout << "About to process SED events" << std::endl;
-    TFile *fileSource = TFile::Open(parameters.m_inputFileName.c_str(), "READ");
-    if (!fileSource)
-    {
-        std::cout << "Error in ProcessSEDEvents(): can't open file " << parameters.m_inputFileName << std::endl;
-        return;
-    }
-
-    TTree *ndsim = dynamic_cast<TTree *>(fileSource->Get(parameters.m_inputTreeName.c_str()));
-    if (!ndsim)
-    {
-        std::cout << "Could not find the event tree " << parameters.m_inputTreeName << std::endl;
-        fileSource->Close();
-        return;
-    }
-
-    const LArSED larsed(ndsim);
-
-    const LArGrid grid = parameters.m_useModularGeometry ? MakeVoxelisationGrid(geom, parameters) : MakeVoxelisationGrid(pPrimaryPandora, parameters);
-
-    std::cout << "Total grid volume: bot = " << grid.m_bottom << "\n top = " << grid.m_top << std::endl;
-    std::cout << "Making voxels with size " << grid.m_binWidths << std::endl;
-
-    // Total number of entries in the TTree
-    const int nEntries(ndsim->GetEntries());
-
-    // Starting event
-    const int startEvt = parameters.m_nEventsToSkip > 0 ? parameters.m_nEventsToSkip : 0;
-    // Number of events to process, up to nEntries
-    const int nProcess = parameters.m_nEventsToProcess > 0 ? parameters.m_nEventsToProcess : nEntries;
-    // End event, up to nEntries
-    const int endEvt = (startEvt + nProcess) < nEntries ? startEvt + nProcess : nEntries;
-
-    std::cout << "Start event is " << startEvt << " and end event is " << endEvt - 1 << std::endl;
-
-    for (int iEvt = startEvt; iEvt < endEvt; iEvt++)
-    {
-        if (parameters.m_shouldDisplayEventNumber)
-            std::cout << std::endl << "   PROCESSING EVENT: " << iEvt << std::endl << std::endl;
-
-        ndsim->GetEntry(iEvt);
-
-        // Create MCParticles from Geant4 trajectories
-        MCParticleEnergyMap MCEnergyMap;
-        for (size_t imcp = 0; imcp < larsed.m_mcp_id->size(); ++imcp)
-        {
-            MCEnergyMap[(*larsed.m_mcp_id)[imcp]] = (*larsed.m_mcp_energy)[imcp];
-        }
-        CreateSEDMCParticles(larsed, pPrimaryPandora, parameters);
-
-        LArVoxelList voxelList;
-
-        // Loop over the energy deposits and create voxels
-        for (size_t ised = 0; ised < larsed.m_sed_det->size(); ++ised)
-        {
-            if ((*larsed.m_sed_det)[ised] == parameters.m_sensitiveDetName) // usually volTPCActive
-            {
-                const float startx = (*larsed.m_sed_startx)[ised];
-                const float starty = (*larsed.m_sed_starty)[ised];
-                const float startz = (*larsed.m_sed_startz)[ised];
-                const float endx = (*larsed.m_sed_endx)[ised];
-                const float endy = (*larsed.m_sed_endy)[ised];
-                const float endz = (*larsed.m_sed_endz)[ised];
-                const float energy = (*larsed.m_sed_energy)[ised] * 1e-3; // sed_energy is in MeV, convert it to GeV
-                const int g4id = std::abs((*larsed.m_sed_id)[ised]);
-
-                const pandora::CartesianVector start(startx, starty, startz);
-                const pandora::CartesianVector end(endx, endy, endz);
-
-                const LArHitInfo hitInfo(start, end, energy, g4id, parameters.m_lengthScale, parameters.m_energyScale);
-                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters, geom);
-
-                for (const LArVoxel &voxel : currentVoxelList)
-                    voxelList.emplace_back(voxel);
-            }
-        }
-
-        std::cout << "Produced " << voxelList.size() << " voxels from " << larsed.m_sed_det->size() << " hit segments." << std::endl;
-
-        // Merge voxels with the same IDs
-        const LArVoxelList mergedVoxels = MergeSameVoxels(voxelList);
-
-        std::cout << "Produced " << mergedVoxels.size() << " merged voxels from " << voxelList.size() << " voxels." << std::endl;
-        voxelList.clear();
-
-        // Stop processing the event if we have too many voxels: reco takes too long
-        if (parameters.m_maxMergedVoxels > 0 && mergedVoxels.size() > parameters.m_maxMergedVoxels)
-        {
-            std::cout << "SKIPPING EVENT: number of merged voxels " << mergedVoxels.size() << " > " << parameters.m_maxMergedVoxels << std::endl;
-            break;
-        }
-
-        int hitCounter{0};
-        MakeCaloHitsFromVoxels(mergedVoxels, MCEnergyMap, pPrimaryPandora, parameters, hitCounter);
-
-        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
-        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
-    } // end event loop
-
-    fileSource->Close();
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -698,6 +486,270 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters)
+{
+    lar_content::LArMCParticleFactory mcParticleFactory;
+
+    // Offset neutrino IDs by 10^8
+    const int nuidoffset(100000000);
+
+    std::cout << "Read in " << larspmc.m_nuPDG->size() << " true neutrinos" << std::endl;
+
+    std::map<int, int> neutrinoIdToIndex;
+
+    // Create MC neutrinos
+    for (size_t i = 0; i < larspmc.m_nuPDG->size(); ++i)
+    {
+        const int neutrinoID = nuidoffset + (*larspmc.m_nuID)[i];
+        neutrinoIdToIndex[neutrinoID] = i;
+
+        const int neutrinoPDG = (*larspmc.m_nuPDG)[i];
+        const std::string reaction = GetNuanceReaction((*larspmc.m_ccnc)[i], (*larspmc.m_mode)[i]);
+        const int nuanceCode = GetNuanceCode(reaction);
+        const float nuVtxX = (*larspmc.m_nuvtxx)[i] * parameters.m_lengthScale;
+        const float nuVtxY = (*larspmc.m_nuvtxy)[i] * parameters.m_lengthScale;
+        const float nuVtxZ = (*larspmc.m_nuvtxz)[i] * parameters.m_lengthScale;
+
+        const float nuE = (*larspmc.m_nue)[i] * parameters.m_energyScale;
+        const float nuPx = (*larspmc.m_nupx)[i];
+        const float nuPy = (*larspmc.m_nupy)[i];
+        const float nuPz = (*larspmc.m_nupz)[i];
+
+        lar_content::LArMCParticleParameters mcNeutrinoParameters;
+        mcNeutrinoParameters.m_nuanceCode = nuanceCode;
+        mcNeutrinoParameters.m_process = lar_content::MC_PROC_INCIDENT_NU;
+
+        mcNeutrinoParameters.m_energy = nuE;
+        mcNeutrinoParameters.m_momentum = pandora::CartesianVector(nuPx, nuPy, nuPz);
+        mcNeutrinoParameters.m_vertex = pandora::CartesianVector(nuVtxX, nuVtxY, nuVtxZ);
+        mcNeutrinoParameters.m_endpoint = pandora::CartesianVector(nuVtxX, nuVtxY, nuVtxZ);
+
+        mcNeutrinoParameters.m_particleId = neutrinoPDG;
+        mcNeutrinoParameters.m_mcParticleType = pandora::MC_3D;
+        mcNeutrinoParameters.m_pParentAddress = (void *)((intptr_t)neutrinoID);
+
+        PANDORA_THROW_RESULT_IF(
+            pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcNeutrinoParameters, mcParticleFactory));
+    }
+
+    // Specify maximum mcpID for hits in a given event to ensure unique trackIDs: 10^6
+    const int max_mcpID{1000000};
+
+    // Create MC particles
+    for (size_t i = 0; i < larspmc.m_mcp_id->size(); ++i)
+    {
+        // LArMCParticle parameters
+        lar_content::LArMCParticleParameters mcParticleParameters;
+
+        // Initial momentum and energy in GeV
+        const float px = (*larspmc.m_mcp_px)[i] * parameters.m_energyScale;
+        const float py = (*larspmc.m_mcp_py)[i] * parameters.m_energyScale;
+        const float pz = (*larspmc.m_mcp_pz)[i] * parameters.m_energyScale;
+        const float energy = (*larspmc.m_mcp_energy)[i] * parameters.m_energyScale;
+        mcParticleParameters.m_energy = energy;
+        mcParticleParameters.m_momentum = pandora::CartesianVector(px, py, pz);
+
+        // Particle codes
+        mcParticleParameters.m_particleId = (*larspmc.m_mcp_pdg)[i];
+        mcParticleParameters.m_mcParticleType = pandora::MC_3D;
+
+        // Neutrino info
+        const int nuid = (*larspmc.m_mcp_nuid)[i];
+        const int neutrinoID = nuid + nuidoffset;
+        const int nuIndex = neutrinoIdToIndex[neutrinoID];
+        const std::string reaction = GetNuanceReaction((*larspmc.m_ccnc)[nuIndex], (*larspmc.m_mode)[nuIndex]);
+        mcParticleParameters.m_nuanceCode = GetNuanceCode(reaction);
+
+        // Set unique parent integer address using trackID. Need to add a large enough
+        // offset of 10^6 to make these unique when we have more than 1 neutrino per event.
+        // The mcp_id's reset (to zero) per neutrino interaction vertex, and the offset
+        // should allow up to 10^6 hits for each neutrino. The true neutrino IDs (nuID)
+        // found earlier are offset by 10^8, which should allow unique trackID's for up to
+        // 100 neutrino interactions per event, each containing up to 10^6 hits
+
+        // Make sure mcpID is not equal to or larger than the max_mcpID offset (10^6)
+        const int mcpID = (*larspmc.m_mcp_id)[i];
+        if (mcpID >= max_mcpID)
+        {
+            std::cout << "Ignoring hit " << i << " with mcpID >= " << max_mcpID << std::endl;
+            continue;
+        }
+
+        const int offsetID = max_mcpID * nuIndex;
+        const int trackID = mcpID + offsetID;
+        // Make sure trackID is not equal to or larger than nuidoffset (10^8)
+        if (trackID >= nuidoffset)
+        {
+            std::cout << "Ignoring hit " << i << " with trackID " << trackID << " >= " << nuidoffset << std::endl;
+            continue;
+        }
+
+        mcParticleParameters.m_pParentAddress = (void *)((intptr_t)trackID);
+
+        // Start and end points in cm
+        const float startx = (*larspmc.m_mcp_startx)[i] * parameters.m_lengthScale;
+        const float starty = (*larspmc.m_mcp_starty)[i] * parameters.m_lengthScale;
+        const float startz = (*larspmc.m_mcp_startz)[i] * parameters.m_lengthScale;
+        mcParticleParameters.m_vertex = pandora::CartesianVector(startx, starty, startz);
+
+        const float endx = (*larspmc.m_mcp_endx)[i] * parameters.m_lengthScale;
+        const float endy = (*larspmc.m_mcp_endy)[i] * parameters.m_lengthScale;
+        const float endz = (*larspmc.m_mcp_endz)[i] * parameters.m_lengthScale;
+        mcParticleParameters.m_endpoint = pandora::CartesianVector(endx, endy, endz);
+
+        // Process ID
+        mcParticleParameters.m_process = lar_content::MC_PROC_UNKNOWN;
+
+        // Create MCParticle
+        try
+        {
+            PANDORA_THROW_RESULT_IF(
+                pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcParticleParameters, mcParticleFactory));
+        }
+        catch (const pandora::StatusCodeException &)
+        {
+            std::cout << "Unable to create MCParticle " << i << " : invalid info supplied, e.g. non-unique trackID or NaNs" << std::endl;
+            continue;
+        }
+
+        // Set parent relationships
+        const int mcpMother = (*larspmc.m_mcp_mother)[i];
+        // Add offsetID to particles that are not the primary neutrinos
+        const int parentID = mcpMother == -1 ? mcpMother : (mcpMother + offsetID);
+
+        if (parentID == -1) // link to mc neutrino
+        {
+            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)neutrinoID), (void *)((intptr_t)trackID)));
+        }
+        else
+        {
+            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
+                PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)parentID), (void *)((intptr_t)trackID)));
+        }
+    }
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+#ifdef USE_EDEPSIM
+void ProcessEDepSimEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom)
+{
+
+    TFile *fileSource = TFile::Open(parameters.m_inputFileName.c_str(), "READ");
+    if (!fileSource)
+    {
+        std::cout << "Error in ProcessEDepSimEvents(): can't open file " << parameters.m_inputFileName << std::endl;
+        return;
+    }
+
+    TTree *pEDepSimTree = dynamic_cast<TTree *>(fileSource->Get(parameters.m_inputTreeName.c_str()));
+    if (!pEDepSimTree)
+    {
+        std::cout << "Could not find the event tree " << parameters.m_inputTreeName << std::endl;
+        fileSource->Close();
+        return;
+    }
+
+    TG4Event *pEDepSimEvent(nullptr);
+    pEDepSimTree->SetBranchAddress("Event", &pEDepSimEvent);
+
+    // Factory for creating LArCaloHits
+    lar_content::LArCaloHitFactory m_larCaloHitFactory;
+
+    const LArGrid grid = parameters.m_useModularGeometry ? MakeVoxelisationGrid(geom, parameters) : MakeVoxelisationGrid(pPrimaryPandora, parameters);
+
+    std::cout << "Total grid volume: bot = " << grid.m_bottom << "\n top = " << grid.m_top << std::endl;
+    std::cout << "Making voxels with size " << grid.m_binWidths << std::endl;
+
+    // Total number of entries in the TTree
+    const int nEntries(pEDepSimTree->GetEntries());
+
+    // Starting event
+    const int startEvt = parameters.m_nEventsToSkip > 0 ? parameters.m_nEventsToSkip : 0;
+    // Number of events to process, up to nEntries
+    const int nProcess = parameters.m_nEventsToProcess > 0 ? parameters.m_nEventsToProcess : nEntries;
+    // End event, up to nEntries
+    const int endEvt = (startEvt + nProcess) < nEntries ? startEvt + nProcess : nEntries;
+
+    std::cout << "Start event is " << startEvt << " and end event is " << endEvt - 1 << std::endl;
+
+    for (int iEvt = startEvt; iEvt < endEvt; iEvt++)
+    {
+        if (parameters.m_shouldDisplayEventNumber)
+            std::cout << std::endl << "   PROCESSING EVENT: " << iEvt << std::endl << std::endl;
+
+        pEDepSimTree->GetEntry(iEvt);
+
+        if (!pEDepSimEvent)
+            return;
+
+        // Create MCParticles from Geant4 trajectories
+        const MCParticleEnergyMap MCEnergyMap = CreateEDepSimMCParticles(*pEDepSimEvent, pPrimaryPandora, parameters);
+
+        int hitCounter{0};
+
+        // Loop over (EDep) hits, which are stored in the hit segment detectors.
+        // Only process hits from the detector we are interested in
+        for (TG4HitSegmentDetectors::iterator detector = pEDepSimEvent->SegmentDetectors.begin();
+             detector != pEDepSimEvent->SegmentDetectors.end(); ++detector)
+        {
+            if (detector->first.find(parameters.m_sensitiveDetName) == std::string::npos)
+            {
+                std::cout << "Skipping sensitive detector " << detector->first << "; expecting " << parameters.m_sensitiveDetName << std::endl;
+                continue;
+            }
+
+            std::cout << "Show hits for " << detector->first << " (" << detector->second.size() << " hits)" << std::endl;
+            std::cout << "                                 " << std::endl;
+
+            LArVoxelList voxelList;
+
+            // Loop over hit segments and create voxels from them
+            for (TG4HitSegment &g4Hit : detector->second)
+            {
+                const TLorentzVector &hitStart = g4Hit.GetStart();
+                const TLorentzVector &hitStop = g4Hit.GetStop();
+                const pandora::CartesianVector start(hitStart.X(), hitStart.Y(), hitStart.Z());
+                const pandora::CartesianVector end(hitStop.X(), hitStop.Y(), hitStop.Z());
+                const float energy = g4Hit.GetEnergyDeposit();
+                const int g4id = g4Hit.GetContributors()[0];
+
+                const LArHitInfo hitInfo(start, end, energy, g4id, parameters.m_lengthScale, parameters.m_energyScale);
+                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters, geom);
+
+                for (const LArVoxel &voxel : currentVoxelList)
+                    voxelList.emplace_back(voxel);
+            }
+
+            std::cout << "Produced " << voxelList.size() << " voxels from " << detector->second.size() << " hit segments." << std::endl;
+
+            // Merge voxels with the same IDs
+            const LArVoxelList mergedVoxels = MergeSameVoxels(voxelList);
+
+            std::cout << "Produced " << mergedVoxels.size() << " merged voxels from " << voxelList.size() << " voxels." << std::endl;
+            voxelList.clear();
+
+            // Stop processing the event if we have too many voxels: reco takes too long
+            if (parameters.m_maxMergedVoxels > 0 && mergedVoxels.size() > parameters.m_maxMergedVoxels)
+            {
+                std::cout << "SKIPPING EVENT: number of merged voxels " << mergedVoxels.size() << " > " << parameters.m_maxMergedVoxels << std::endl;
+                break;
+            }
+
+            MakeCaloHitsFromVoxels(mergedVoxels, MCEnergyMap, pPrimaryPandora, parameters, hitCounter);
+        } // end segment detector loop
+
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
+    }
+
+    // Close input file
+    fileSource->Close();
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
 MCParticleEnergyMap CreateEDepSimMCParticles(const TG4Event &event, const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters)
 {
     // Create map of trackID and energy
@@ -872,6 +924,114 @@ MCParticleEnergyMap CreateEDepSimMCParticles(const TG4Event &event, const pandor
     return energyMap;
 }
 
+#endif
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void ProcessSEDEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom)
+{
+    std::cout << "About to process SED events" << std::endl;
+    TFile *fileSource = TFile::Open(parameters.m_inputFileName.c_str(), "READ");
+    if (!fileSource)
+    {
+        std::cout << "Error in ProcessSEDEvents(): can't open file " << parameters.m_inputFileName << std::endl;
+        return;
+    }
+
+    TTree *ndsim = dynamic_cast<TTree *>(fileSource->Get(parameters.m_inputTreeName.c_str()));
+    if (!ndsim)
+    {
+        std::cout << "Could not find the event tree " << parameters.m_inputTreeName << std::endl;
+        fileSource->Close();
+        return;
+    }
+
+    const LArSED larsed(ndsim);
+
+    const LArGrid grid = parameters.m_useModularGeometry ? MakeVoxelisationGrid(geom, parameters) : MakeVoxelisationGrid(pPrimaryPandora, parameters);
+
+    std::cout << "Total grid volume: bot = " << grid.m_bottom << "\n top = " << grid.m_top << std::endl;
+    std::cout << "Making voxels with size " << grid.m_binWidths << std::endl;
+
+    // Total number of entries in the TTree
+    const int nEntries(ndsim->GetEntries());
+
+    // Starting event
+    const int startEvt = parameters.m_nEventsToSkip > 0 ? parameters.m_nEventsToSkip : 0;
+    // Number of events to process, up to nEntries
+    const int nProcess = parameters.m_nEventsToProcess > 0 ? parameters.m_nEventsToProcess : nEntries;
+    // End event, up to nEntries
+    const int endEvt = (startEvt + nProcess) < nEntries ? startEvt + nProcess : nEntries;
+
+    std::cout << "Start event is " << startEvt << " and end event is " << endEvt - 1 << std::endl;
+
+    for (int iEvt = startEvt; iEvt < endEvt; iEvt++)
+    {
+        if (parameters.m_shouldDisplayEventNumber)
+            std::cout << std::endl << "   PROCESSING EVENT: " << iEvt << std::endl << std::endl;
+
+        ndsim->GetEntry(iEvt);
+
+        // Create MCParticles from Geant4 trajectories
+        MCParticleEnergyMap MCEnergyMap;
+        for (size_t imcp = 0; imcp < larsed.m_mcp_id->size(); ++imcp)
+        {
+            MCEnergyMap[(*larsed.m_mcp_id)[imcp]] = (*larsed.m_mcp_energy)[imcp];
+        }
+        CreateSEDMCParticles(larsed, pPrimaryPandora, parameters);
+
+        LArVoxelList voxelList;
+
+        // Loop over the energy deposits and create voxels
+        for (size_t ised = 0; ised < larsed.m_sed_det->size(); ++ised)
+        {
+            if ((*larsed.m_sed_det)[ised] == parameters.m_sensitiveDetName) // usually volTPCActive
+            {
+                const float startx = (*larsed.m_sed_startx)[ised];
+                const float starty = (*larsed.m_sed_starty)[ised];
+                const float startz = (*larsed.m_sed_startz)[ised];
+                const float endx = (*larsed.m_sed_endx)[ised];
+                const float endy = (*larsed.m_sed_endy)[ised];
+                const float endz = (*larsed.m_sed_endz)[ised];
+                const float energy = (*larsed.m_sed_energy)[ised] * 1e-3; // sed_energy is in MeV, convert it to GeV
+                const int g4id = std::abs((*larsed.m_sed_id)[ised]);
+
+                const pandora::CartesianVector start(startx, starty, startz);
+                const pandora::CartesianVector end(endx, endy, endz);
+
+                const LArHitInfo hitInfo(start, end, energy, g4id, parameters.m_lengthScale, parameters.m_energyScale);
+                const LArVoxelList currentVoxelList = MakeVoxels(hitInfo, grid, parameters, geom);
+
+                for (const LArVoxel &voxel : currentVoxelList)
+                    voxelList.emplace_back(voxel);
+            }
+        }
+
+        std::cout << "Produced " << voxelList.size() << " voxels from " << larsed.m_sed_det->size() << " hit segments." << std::endl;
+
+        // Merge voxels with the same IDs
+        const LArVoxelList mergedVoxels = MergeSameVoxels(voxelList);
+
+        std::cout << "Produced " << mergedVoxels.size() << " merged voxels from " << voxelList.size() << " voxels." << std::endl;
+        voxelList.clear();
+
+        // Stop processing the event if we have too many voxels: reco takes too long
+        if (parameters.m_maxMergedVoxels > 0 && mergedVoxels.size() > parameters.m_maxMergedVoxels)
+        {
+            std::cout << "SKIPPING EVENT: number of merged voxels " << mergedVoxels.size() << " > " << parameters.m_maxMergedVoxels << std::endl;
+            break;
+        }
+
+        int hitCounter{0};
+        MakeCaloHitsFromVoxels(mergedVoxels, MCEnergyMap, pPrimaryPandora, parameters, hitCounter);
+
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
+    } // end event loop
+
+    fileSource->Close();
+}
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 void CreateSEDMCParticles(const LArSED &larsed, const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters)
@@ -967,152 +1127,6 @@ void CreateSEDMCParticles(const LArSED &larsed, const pandora::Pandora *const pP
         const int parentID = (*larsed.m_mcp_mother)[i];
 
         if (parentID == 0) // link to mc neutrino
-        {
-            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)neutrinoID), (void *)((intptr_t)trackID)));
-        }
-        else
-        {
-            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)parentID), (void *)((intptr_t)trackID)));
-        }
-    }
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters)
-{
-    lar_content::LArMCParticleFactory mcParticleFactory;
-
-    // Offset neutrino IDs by 10^8
-    const int nuidoffset(100000000);
-
-    std::cout << "Read in " << larspmc.m_nuPDG->size() << " true neutrinos" << std::endl;
-
-    std::map<int, int> neutrinoIdToIndex;
-
-    // Create MC neutrinos
-    for (size_t i = 0; i < larspmc.m_nuPDG->size(); ++i)
-    {
-        const int neutrinoID = nuidoffset + (*larspmc.m_nuID)[i];
-        neutrinoIdToIndex[neutrinoID] = i;
-
-        const int neutrinoPDG = (*larspmc.m_nuPDG)[i];
-        const std::string reaction = GetNuanceReaction((*larspmc.m_ccnc)[i], (*larspmc.m_mode)[i]);
-        const int nuanceCode = GetNuanceCode(reaction);
-        const float nuVtxX = (*larspmc.m_nuvtxx)[i] * parameters.m_lengthScale;
-        const float nuVtxY = (*larspmc.m_nuvtxy)[i] * parameters.m_lengthScale;
-        const float nuVtxZ = (*larspmc.m_nuvtxz)[i] * parameters.m_lengthScale;
-
-        const float nuE = (*larspmc.m_nue)[i] * parameters.m_energyScale;
-        const float nuPx = (*larspmc.m_nupx)[i];
-        const float nuPy = (*larspmc.m_nupy)[i];
-        const float nuPz = (*larspmc.m_nupz)[i];
-
-        lar_content::LArMCParticleParameters mcNeutrinoParameters;
-        mcNeutrinoParameters.m_nuanceCode = nuanceCode;
-        mcNeutrinoParameters.m_process = lar_content::MC_PROC_INCIDENT_NU;
-
-        mcNeutrinoParameters.m_energy = nuE;
-        mcNeutrinoParameters.m_momentum = pandora::CartesianVector(nuPx, nuPy, nuPz);
-        mcNeutrinoParameters.m_vertex = pandora::CartesianVector(nuVtxX, nuVtxY, nuVtxZ);
-        mcNeutrinoParameters.m_endpoint = pandora::CartesianVector(nuVtxX, nuVtxY, nuVtxZ);
-
-        mcNeutrinoParameters.m_particleId = neutrinoPDG;
-        mcNeutrinoParameters.m_mcParticleType = pandora::MC_3D;
-        mcNeutrinoParameters.m_pParentAddress = (void *)((intptr_t)neutrinoID);
-
-        PANDORA_THROW_RESULT_IF(
-            pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcNeutrinoParameters, mcParticleFactory));
-    }
-
-    // Specify maximum mcpID for hits in a given event to ensure unique trackIDs: 10^6
-    const int max_mcpID{1000000};
-
-    // Create MC particles
-    for (size_t i = 0; i < larspmc.m_mcp_id->size(); ++i)
-    {
-        // LArMCParticle parameters
-        lar_content::LArMCParticleParameters mcParticleParameters;
-
-        // Initial momentum and energy in GeV
-        const float px = (*larspmc.m_mcp_px)[i] * parameters.m_energyScale;
-        const float py = (*larspmc.m_mcp_py)[i] * parameters.m_energyScale;
-        const float pz = (*larspmc.m_mcp_pz)[i] * parameters.m_energyScale;
-        const float energy = (*larspmc.m_mcp_energy)[i] * parameters.m_energyScale;
-        mcParticleParameters.m_energy = energy;
-        mcParticleParameters.m_momentum = pandora::CartesianVector(px, py, pz);
-
-        // Particle codes
-        mcParticleParameters.m_particleId = (*larspmc.m_mcp_pdg)[i];
-        mcParticleParameters.m_mcParticleType = pandora::MC_3D;
-
-        // Neutrino info
-        const int nuid = (*larspmc.m_mcp_nuid)[i];
-        const int neutrinoID = nuid + nuidoffset;
-        const int nuIndex = neutrinoIdToIndex[neutrinoID];
-        const std::string reaction = GetNuanceReaction((*larspmc.m_ccnc)[nuIndex], (*larspmc.m_mode)[nuIndex]);
-        mcParticleParameters.m_nuanceCode = GetNuanceCode(reaction);
-
-        // Set unique parent integer address using trackID. Need to add a large enough
-        // offset of 10^6 to make these unique when we have more than 1 neutrino per event.
-        // The mcp_id's reset (to zero) per neutrino interaction vertex, and the offset
-        // should allow up to 10^6 hits for each neutrino. The true neutrino IDs (nuID)
-        // found earlier are offset by 10^8, which should allow unique trackID's for up to
-        // 100 neutrino interactions per event, each containing up to 10^6 hits
-
-        // Make sure mcpID is not equal to or larger than the max_mcpID offset (10^6)
-        const int mcpID = (*larspmc.m_mcp_id)[i];
-        if (mcpID >= max_mcpID)
-        {
-            std::cout << "Ignoring hit " << i << " with mcpID >= " << max_mcpID << std::endl;
-            continue;
-        }
-
-        const int offsetID = max_mcpID * nuIndex;
-        const int trackID = mcpID + offsetID;
-        // Make sure trackID is not equal to or larger than nuidoffset (10^8)
-        if (trackID >= nuidoffset)
-        {
-            std::cout << "Ignoring hit " << i << " with trackID " << trackID << " >= " << nuidoffset << std::endl;
-            continue;
-        }
-
-        mcParticleParameters.m_pParentAddress = (void *)((intptr_t)trackID);
-
-        // Start and end points in cm
-        const float startx = (*larspmc.m_mcp_startx)[i] * parameters.m_lengthScale;
-        const float starty = (*larspmc.m_mcp_starty)[i] * parameters.m_lengthScale;
-        const float startz = (*larspmc.m_mcp_startz)[i] * parameters.m_lengthScale;
-        mcParticleParameters.m_vertex = pandora::CartesianVector(startx, starty, startz);
-
-        const float endx = (*larspmc.m_mcp_endx)[i] * parameters.m_lengthScale;
-        const float endy = (*larspmc.m_mcp_endy)[i] * parameters.m_lengthScale;
-        const float endz = (*larspmc.m_mcp_endz)[i] * parameters.m_lengthScale;
-        mcParticleParameters.m_endpoint = pandora::CartesianVector(endx, endy, endz);
-
-        // Process ID
-        mcParticleParameters.m_process = lar_content::MC_PROC_UNKNOWN;
-
-        // Create MCParticle
-        try
-        {
-            PANDORA_THROW_RESULT_IF(
-                pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcParticleParameters, mcParticleFactory));
-        }
-        catch (const pandora::StatusCodeException &)
-        {
-            std::cout << "Unable to create MCParticle " << i << " : invalid info supplied, e.g. non-unique trackID or NaNs" << std::endl;
-            continue;
-        }
-
-        // Set parent relationships
-        const int mcpMother = (*larspmc.m_mcp_mother)[i];
-        // Add offsetID to particles that are not the primary neutrinos
-        const int parentID = mcpMother == -1 ? mcpMother : (mcpMother + offsetID);
-
-        if (parentID == -1) // link to mc neutrino
         {
             PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
                 PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)neutrinoID), (void *)((intptr_t)trackID)));
@@ -1753,10 +1767,10 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
     int cOpt(0);
 
     std::string recoOption("");
-    std::string viewOption("3d");
-    std::string formatOption("EDepSim");
-    std::string geomFileName("");
+    std::string viewOption("both");
+    std::string formatOption("SP");
     std::string inputTreeName("");
+    std::string geomManagerName("");
     std::string geomVolName("");
     std::string sensDetName("");
 
@@ -1780,10 +1794,10 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
                 formatOption = optarg;
                 break;
             case 'g':
-                geomFileName = optarg;
+                parameters.m_geomFileName = optarg;
                 break;
             case 't':
-                parameters.m_geomManagerName = optarg;
+                geomManagerName = optarg;
                 break;
             case 'v':
                 geomVolName = optarg;
@@ -1825,8 +1839,14 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
     }
 
     ProcessViewOption(viewOption, parameters);
-    ProcessFormatOption(formatOption, inputTreeName, geomFileName, geomVolName, sensDetName, parameters);
-    return ProcessRecoOption(recoOption, parameters);
+    const bool gotFormat = ProcessFormatOption(formatOption, inputTreeName, geomManagerName, geomVolName, sensDetName, parameters);
+    const bool gotRecoOpt = ProcessRecoOption(recoOption, parameters);
+    const bool passed = gotFormat && gotRecoOpt;
+    if (!passed)
+    {
+        return PrintOptions();
+    }
+    return passed;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -1837,26 +1857,26 @@ bool PrintOptions()
               << "./bin/PandoraInterface " << std::endl
               << "    -r RecoOption          (required) [Full, AllHitsCR, AllHitsNu, CRRemHitsSliceCR, CRRemHitsSliceNu, AllHitsSliceCR, AllHitsSliceNu]"
               << std::endl
-              << "    -i Settings            (required) [algorithm description: xml]" << std::endl
-              << "    -e EventsFile          (required) [input data ROOT file containing events (& geometry)]" << std::endl
-              << "    -k EventsTree          (optional) [name of the input ROOT TTree (default = EDepSimEvents)]" << std::endl
-              << "    -f DataFormat          (optional) [EDepSim (default, rooTracker format), SED (LArSoft-like), SP (SpacePoint), SPMC]"
+              << "    -i Settings            (required) [Run xml file for setting up the Pandora algorithms]" << std::endl
+              << "    -e EventsFile          (required) [Events input data ROOT file]" << std::endl
+              << "    -g GeometryFile        (required) [ROOT file containing the TGeoManager geometry]" << std::endl
+              << "    -f DataFormat          (optional) [SP (SpacePoint default), SPMC (SpacePoint MC), EDepSim (rooTracker) or SED (LArSoft-like)]"
               << std::endl
-              << "    -g GeometryFile        (optional) [TGeoManager ROOT file (default = input EventsFile for EDepSim)]" << std::endl
-              << "    -t TGeoManagerName     (optional) [TGeoManager name (default = EDepSimGeometry)]" << std::endl
-              << "    -n NEventsToProcess    (optional) [no. of events to process]" << std::endl
-              << "    -s NEventsToSkip       (optional) [no. of events to skip in first file]" << std::endl
-              << "    -p                     (optional) [print status]" << std::endl
-              << "    -N                     (optional) [print event numbers]" << std::endl
-              << "    -j Projection          (optional) [3D (default), LArTPC, Both]" << std::endl
-              << "    -w width               (optional) [voxel bin width (cm), default = 0.4 cm]" << std::endl
-              << "    -m maxMergedVoxels     (optional) [skip events that have N(merged voxels) > maxMergedVoxels (default = no events skipped)]"
+              << "    -k EventsTreeName      (optional) [Name of the input events ROOT TTree (default = events)]" << std::endl
+              << "    -t TGeoManagerName     (optional) [TGeoManager name (default = Default)]" << std::endl
+              << "    -v geometryVolName     (optional) [ND LAr physical volume name (default = volArgonCubeCryostat_PV)]" << std::endl
+              << "    -d sensitiveDetName    (optional) [ND LAr sensitive detector name (default = volTPCActive)]" << std::endl
+              << "    -M                     (optional) [Use modular geometry that makes each TPC active volume separately (default = false)]"
               << std::endl
-              << "    -c minMipEquivE        (optional) [minimum MIP equivalent energy, default = 0.3]" << std::endl
-              << "    -v geometryVolName     (optional) [Geant4 geometry placement detector volume name, default = volArgonCubeDetector_PV_0]"
+              << "    -j Projection          (optional) [Both (default), 3D or LArTPC (2D projections only)]" << std::endl
+              << "    -n NEventsToProcess    (optional) [Number of events to process]" << std::endl
+              << "    -s NEventsToSkip       (optional) [Number of events to skip in the event input file]" << std::endl
+              << "    -p                     (optional) [Print status]" << std::endl
+              << "    -N                     (optional) [Print event numbers]" << std::endl
+              << "    -w width               (optional) [Voxel bin width (cm), default = 0.4 cm]" << std::endl
+              << "    -m maxMergedVoxels     (optional) [Skip events that have N(merged voxels) > maxMergedVoxels (default = no events skipped)]"
               << std::endl
-              << "    -d sensitiveDetName    (optional) [Geant4 sensitive hits detector name, default = ArgonCube]" << std::endl
-              << "    -M                     (optional) [use the modular geometry that makes each TPC active volume separately]" << std::endl
+              << "    -c minMipEquivE        (optional) [Minimum MIP equivalent energy, default = 0.3]" << std::endl
               << std::endl;
 
     return false;
@@ -1869,23 +1889,23 @@ void ProcessViewOption(const std::string &viewOption, Parameters &parameters)
     std::string chosenViewOption(viewOption);
     std::transform(chosenViewOption.begin(), chosenViewOption.end(), chosenViewOption.begin(), ::tolower);
 
-    if (chosenViewOption == "3d")
+    if (chosenViewOption == "both")
     {
-        // 3D hits only
-        std::cout << "Using 3D hits" << std::endl;
-        parameters.m_useLArTPC = false;
-        parameters.m_use3D = true;
-    }
-    else if (chosenViewOption == "both")
-    {
-        // LArTPC and 3D hits
+        // Both LArTPC 2D projections and 3D hits (default)
         std::cout << "Using LArTPC projections _and_ 3D hits" << std::endl;
         parameters.m_useLArTPC = true;
         parameters.m_use3D = true;
     }
-    else
+    else if (chosenViewOption == "3d")
     {
-        // LArTPC hits only
+	// 3D hits only
+        std::cout << "Using 3D hits" << std::endl;
+        parameters.m_useLArTPC = false;
+        parameters.m_use3D = true;
+    }
+    else if (chosenViewOption == "lartpc")
+    {
+        // LArTPC 2D projected hits only
         std::cout << "Using LArTPC projections" << std::endl;
         parameters.m_useLArTPC = true;
         parameters.m_use3D = false;
@@ -1898,6 +1918,7 @@ bool ProcessRecoOption(const std::string &recoOption, Parameters &parameters)
 {
     std::string chosenRecoOption(recoOption);
     std::transform(chosenRecoOption.begin(), chosenRecoOption.end(), chosenRecoOption.begin(), ::tolower);
+    bool processed(true);
 
     if ("full" == chosenRecoOption)
     {
@@ -1981,74 +2002,81 @@ bool ProcessRecoOption(const std::string &recoOption, Parameters &parameters)
     }
     else
     {
-        std::cout << "LArReco, Unrecognized reconstruction option: " << recoOption << std::endl << std::endl;
-        return PrintOptions();
+        std::cout << "Unrecognized reconstruction option: " << recoOption << std::endl;
+        processed = false;
     }
 
-    return true;
+    return processed;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void ProcessFormatOption(const std::string &formatOption, const std::string &inputTreeName, const std::string &geomFileName,
+bool ProcessFormatOption(const std::string &formatOption, const std::string &inputTreeName, const std::string &geomManagerName,
     const std::string &geomVolName, const std::string &sensDetName, Parameters &parameters)
 {
     std::string chosenFormatOption(formatOption);
     std::transform(chosenFormatOption.begin(), chosenFormatOption.end(), chosenFormatOption.begin(), ::tolower);
+    bool processed(true);
 
-    if (chosenFormatOption == "sed")
+    if (chosenFormatOption == "sp" || chosenFormatOption == "spmc")
     {
-        // LArSoft-type SimEnergyDeposit (SED) ROOT format
-        parameters.m_dataFormat = Parameters::LArNDFormat::SED;
-        // Set the geometry file name
-        parameters.m_geomFileName = geomFileName;
-        // All lengths are already in cm, so don't rescale
-        parameters.m_lengthScale = 1.0f;
-        // All energies are already in GeV, so don't rescale
-        parameters.m_energyScale = 1.0f;
-        // Set expected input TTree name for SED data
-        parameters.m_inputTreeName = inputTreeName.empty() ? "simdump/ndsim" : inputTreeName;
-        // Set geometry volume name if not set
-        parameters.m_geometryVolName = geomVolName.empty() ? "volArgonCubeDetector_0" : geomVolName;
-        // Set the sensitive detector name if not set
-        parameters.m_sensitiveDetName = sensDetName.empty() ? "volTPCActive" : sensDetName;
-    }
-    else if (chosenFormatOption == "sp" || chosenFormatOption == "spmc")
-    {
-        // Space point ROOT format
+        // Space point ROOT format (data = default or MC)
         parameters.m_dataFormat = Parameters::LArNDFormat::SP;
         if (chosenFormatOption == "spmc")
             parameters.m_dataFormat = Parameters::LArNDFormat::SPMC;
-        // Set the geometry file name
-        parameters.m_geomFileName = geomFileName;
+        // Set the event input TTree name
+        parameters.m_inputTreeName = inputTreeName.empty() ? "events" : inputTreeName;
+        // Set the TGeoManager name
+        parameters.m_geomManagerName = geomManagerName.empty() ? "Default" : geomManagerName;
+        // Set geometry volume name
+        parameters.m_geometryVolName = geomVolName.empty() ? "volArgonCubeCryostat_PV" : geomVolName;
+        // Set the sensitive detector name
+        parameters.m_sensitiveDetName = sensDetName.empty() ? "volTPCActive" : sensDetName;
         // All lengths are already in cm, so don't rescale
         parameters.m_lengthScale = 1.0f;
         // All energies are already in GeV, so don't rescale
         parameters.m_energyScale = 1.0f;
-        // Set expected input TTree name for space point data
-        parameters.m_inputTreeName = inputTreeName.empty() ? "spdump/sp" : inputTreeName;
-        // Set geometry volume name if not set
-        parameters.m_geometryVolName = geomVolName.empty() ? "volGrosslabor_0" : geomVolName;
-        // Set the sensitive detector name if not set
-        parameters.m_sensitiveDetName = sensDetName.empty() ? "volTPCActive" : sensDetName;
     }
-    else
+    else if (chosenFormatOption == "edepsim")
     {
         // Assume EDepSim rooTracker format
         parameters.m_dataFormat = Parameters::LArNDFormat::EDepSim;
-        // TGeoManager is stored in the input rooTracker file containing the hits
-        parameters.m_geomFileName = parameters.m_inputFileName;
+        // Set the event input TTree name
+        parameters.m_inputTreeName = inputTreeName.empty() ? "EDepSimEvents" : inputTreeName;
+        // Set the TGeoManager name
+        parameters.m_geomManagerName = geomManagerName.empty() ? "EDepSimGeometry" : geomManagerName;
+        // Set geometry volume name
+        parameters.m_geometryVolName = geomVolName.empty() ? "volArgonCubeDetector_PV_0" : geomVolName;
+        // Set the sensitive detector name
+        parameters.m_sensitiveDetName = sensDetName.empty() ? "ArgonCube" : sensDetName;
         // All lengths are in mm, so we need to convert them to cm
         parameters.m_lengthScale = parameters.m_mm2cm;
         // All energies are in MeV, so we need to convert them to GeV
         parameters.m_energyScale = parameters.m_MeV2GeV;
-        // Set expected input TTree name for space point data
-        parameters.m_inputTreeName = inputTreeName.empty() ? "EDepSimEvents" : inputTreeName;
-        // Set geometry volume name if not set
-        parameters.m_geometryVolName = geomVolName.empty() ? "volArgonCubeDetector_PV_0" : geomVolName;
-        // Set the sensitive detector name if not set
-        parameters.m_sensitiveDetName = sensDetName.empty() ? "TPCActive" : sensDetName;
     }
+    else if (chosenFormatOption == "sed")
+    {
+        // LArSoft-type SimEnergyDeposit (SED) ROOT format
+        parameters.m_dataFormat = Parameters::LArNDFormat::SED;
+        // Set the event input TTree name
+        parameters.m_inputTreeName = inputTreeName.empty() ? "simdump/ndsim" : inputTreeName;
+        // Set the TGeoManager name
+        parameters.m_geomManagerName = geomManagerName.empty() ? "Default" : geomManagerName;
+        // Set geometry volume name
+        parameters.m_geometryVolName = geomVolName.empty() ? "volArgonCubeCryostat_PV" : geomVolName;
+        // Set the sensitive detector name if not set
+        parameters.m_sensitiveDetName = sensDetName.empty() ? "volTPCActive" : sensDetName;
+        // All lengths are already in cm, so don't rescale
+        parameters.m_lengthScale = 1.0f;
+        // All energies are already in GeV, so don't rescale
+        parameters.m_energyScale = 1.0f;
+    }
+    else
+    {
+        std::cout << "Unrecognized data format option: " << formatOption << std::endl;
+        processed = false;
+    }
+    return processed;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
