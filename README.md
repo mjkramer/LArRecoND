@@ -67,7 +67,7 @@ source build.sh
 
 ### Building with LibTorch for using Deep Learning Vertexing
 
-The [buildDLVtx.sh](script/buildDLVtx.sh) script contains the recipe for building LArRecoND with LibTorch v1.6.0
+The [buildDLVtx.sh](scripts/buildDLVtx.sh) script contains the recipe for building LArRecoND with LibTorch v1.6.0
 that is needed for using the Deep Learning Vertexing. This also requires building LArContent
 (which contains the vertexing algorithm) with LibTorch turned on. This recipe uses the LibTorch library that is
 available on CVMFS using a container with the SL7 environment on Fermilab computers (replace the first script
@@ -81,10 +81,11 @@ source buildDLVtx.sh
 
 ### Building with edep-sim (and LibTorch)
 
-The [buildEDepSimDLVtx.sh](script/buildEDepSimDLVtx.sh) script contains the recipe for building LArRecoND with
+The [buildEDepSimDLVtx.sh](scripts/buildEDepSimDLVtx.sh) script contains the recipe for building LArRecoND with
 [edep-sim](https://github.com/ClarkMcGrew/edep-sim) enabled as well as LibTorch for the Deep Learning Vertexing.
 This requires building edep-sim with
-[Geant4](https://geant4-userdoc.web.cern.ch/UsersGuides/InstallationGuide/html/Geant4) (and CLHEP).
+[Geant4](https://geant4-userdoc.web.cern.ch/UsersGuides/InstallationGuide/html/)
+(and [CLHEP](https://proj-clhep.web.cern.ch/proj-clhep/)).
 The build script uses compatible libraries from CVMFS using a container with the SL7 environment on Fermilab
 computers (replace the first script appropriately for your own laptop/PC container setup):
 
@@ -98,7 +99,7 @@ source buildEDepSimDLVtx.sh
 
 Various neutrino algorithms need to use MicroBooNE/SBND and DUNE training files from the
 [LArMachineLearningData](https://github.com/PandoraPFA/LArMachineLearningData) package. These need to be
-downloaded from google drive using the
+downloaded from Google Drive using the
 [download.sh](https://github.com/PandoraPFA/LArMachineLearningData/blob/master/download.sh) script:
 
 ```Shell
@@ -109,14 +110,14 @@ source download.sh dunend
 ```
 
 This should only be done once for each new data set, since repeated attempts to download them will eventually fail,
-owing to automatic download bandwidth restrictions imposed by google drive. If download problems do occur, then you
+owing to automatic download bandwidth restrictions imposed by Google Drive. If download problems do occur, then you
 will need to wait up to 1 day (12 to 24 hours) before trying again.
 
 
 ## Running LArRecoND
 
 For each new terminal/interactive session, make sure the environment is setup by first running either the
-[tags.sh](script/tags.sh), [Alma9_FNAL.sh](scripts/Alma9_FNAL.sh) or [SL7_FNAL.sh](scripts/SL7_FNAL.sh) scripts, where
+[tags.sh](scripts/tags.sh), [Alma9_FNAL.sh](scripts/Alma9_FNAL.sh) or [SL7_FNAL.sh](scripts/SL7_FNAL.sh) scripts, where
 the optional MyTestAreaDirPath parameter sets the $MY_TEST_AREA environment variable (which defaults to the current
 working directory if this is not provided):
 
@@ -184,7 +185,7 @@ the input data ROOT file containing the hits and the geometry ROOT file, respect
 number of events (in this case 10) while `-N` prints out event information.
 
 The input hit data ROOT file uses the default [SpacePoint](include/LArSP.h) format, which needs to be previously
-converted from the original HDF5 format by the [ndlarflow/h5_to_root_ndlarflow.py](h5_to_root_ndlarflow.py) script.
+converted from the original HDF5 format by the [ndlarflow/h5_to_root_ndlarflow.py](ndlarflow/h5_to_root_ndlarflow.py) script.
 
 To use deep learning vertexing (DLVtx), make sure LArRecoND and LArContent is first built with LibTorch enabled, then use
 the [PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml) settings file.
@@ -209,7 +210,7 @@ this is not done by the default `-f SP` format option (the ROOT data structures 
 The `-n` option sets the number of events (in this case 10) while `-N` prints out event information.
 
 The input MC ROOT file needs to be previously converted from the original HDF5 format by the
-[ndlarflow/h5_to_root_ndlarflow.py](h5_to_root_ndlarflow.py) script.
+[ndlarflow/h5_to_root_ndlarflow.py](ndlarflow/h5_to_root_ndlarflow.py) script.
 
 To use deep learning vertexing (DLVtx), make sure LArRecoND and LArContent is first built with LibTorch enabled, then use
 the [PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml) settings file.
