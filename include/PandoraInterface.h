@@ -9,7 +9,11 @@
 #define PANDORA_ND_INTERFACE_H 1
 
 #include "Pandora/PandoraInputTypes.h"
+
+#ifdef USE_EDEPSIM
 #include "TG4Event.h"
+#endif
+
 #include "TGeoManager.h"
 #include "TGeoNode.h"
 
@@ -47,13 +51,13 @@ public:
 
     enum LArNDFormat
     {
-        EDepSim = 0,
-        SED = 1,
-        SP = 2,
-        SPMC = 3
+        SP = 0,
+        SPMC = 1,
+        EDepSim = 2,
+        SED = 3
     };
 
-    LArNDFormat m_dataFormat; ///< The expected input data format (EDepSim rooTracker or SED and SP/SPMC ROOT)
+    LArNDFormat m_dataFormat; ///< The expected input data format
 
     std::string m_settingsFile;  ///< The path to the pandora settings file
                                  ///< (mandatory parameter)
@@ -101,14 +105,14 @@ public:
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 inline Parameters::Parameters() :
-    m_dataFormat(Parameters::LArNDFormat::EDepSim),
+    m_dataFormat(Parameters::LArNDFormat::SP),
     m_settingsFile(""),
     m_inputFileName(""),
-    m_inputTreeName("EDepSimEvents"),
+    m_inputTreeName(""),
     m_geomFileName(""),
-    m_geomManagerName("EDepSimGeometry"),
-    m_geometryVolName("volArgonCubeDetector_PV_0"),
-    m_sensitiveDetName("ArgonCube"),
+    m_geomManagerName(""),
+    m_geometryVolName(""),
+    m_sensitiveDetName(""),
     m_useModularGeometry(false),
     m_nEventsToProcess(-1),
     m_shouldDisplayEventNumber(false),
@@ -124,10 +128,10 @@ inline Parameters::Parameters() :
     m_maxMergedVoxels(-1),
     m_minVoxelMipEquivE(0.3f),
     m_use3D(true),
-    m_useLArTPC(false),
+    m_useLArTPC(true),
     m_voxelWidth(0.4f),
-    m_lengthScale(m_mm2cm),
-    m_energyScale(m_MeV2GeV)
+    m_lengthScale(1.0f),
+    m_energyScale(1.0f)
 {
 }
 
@@ -185,6 +189,28 @@ void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const p
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 /**
+ *  @brief  Process events using the supplied pandora instance, assuming SpacePoint (SP) format
+ *
+ *  @param  parameters The application parameters
+ *  @param  pPrimaryPandora The address of the primary pandora instance
+ */
+void ProcessSPEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Create MC particles from the Geant4 trajectories, assuming SpacePoint (SP) format
+ *
+ *  @param  larsp The LArSP data object
+ *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  parameters The application parameters
+ */
+void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters);
+
+#ifdef USE_EDEPSIM
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
  *  @brief  Process events using the supplied pandora instance, assuming EDepSim format
  *
  *  @param  parameters The application parameters
@@ -192,6 +218,21 @@ void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const p
  *  @param  geom Simple representation of the geometry for assigning TPC numbers
  */
 void ProcessEDepSimEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom);
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ *  @brief  Create MC particles from the Geant4 trajectories, assuming EDepSim format
+ *
+ *  @param  event The Geant4 event
+ *  @param  pPrimaryPandora The address of the primary pandora instance
+ *  @param  parameters The application parameters
+ *
+ *  @return Map of <trackID, energy> for the MC particles
+ */
+MCParticleEnergyMap CreateEDepSimMCParticles(const TG4Event &event, const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters);
+
+#endif
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -207,29 +248,6 @@ void ProcessSEDEvents(const Parameters &parameters, const pandora::Pandora *cons
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 /**
- *  @brief  Process events using the supplied pandora instance, assuming SpacePoint (SP) format
- *
- *  @param  parameters The application parameters
- *  @param  pPrimaryPandora The address of the primary pandora instance
- */
-void ProcessSPEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const LArNDGeomSimple &geom);
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-/**
- *  @brief  Create MC particles from the Geant4 trajectories, assuming EDepSim format
- *
- *  @param  event The Geant4 event
- *  @param  pPrimaryPandora The address of the primary pandora instance
- *  @param  parameters The application parameters
- *
- *  @return Map of <trackID, energy> for the MC particles
- */
-MCParticleEnergyMap CreateEDepSimMCParticles(const TG4Event &event, const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters);
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-/**
  *  @brief  Create MC particles from the Geant4 trajectories, assuming SimEnergyDeposit (SED) format
  *
  *  @param  larsed The LArSED data object
@@ -237,17 +255,6 @@ MCParticleEnergyMap CreateEDepSimMCParticles(const TG4Event &event, const pandor
  *  @param  parameters The application parameters
  */
 void CreateSEDMCParticles(const LArSED &larsed, const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters);
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-/**
- *  @brief  Create MC particles from the Geant4 trajectories, assuming SpacePoint (SP) format
- *
- *  @param  larsp The LArSP data object
- *  @param  pPrimaryPandora The address of the primary pandora instance
- *  @param  parameters The application parameters
- */
-void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const pPrimaryPandora, const Parameters &parameters);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -413,11 +420,15 @@ bool ProcessRecoOption(const std::string &recoOption, Parameters &parameters);
  *  @brief  Process the optional data format and geometry input file
  *
  *  @param  formatOption the data format option string
- *  @param  inputTreeName the name of the input TTree containing the hits
- *  @param  geomFileName the name of the file containing the TGeoManager info
- *  @param  parameters to receive the application parameters
+ *  @param  inputTreeName the name of the input TTree containing the events
+ *  @param  geomManagerName the name of the TGeoManager object
+ *  @param  geomVolName the name of the NDLAr mother volume
+ *  @param  sensDetName the NDLAr sensitive detector name
+ *  @param  parameters to update the application parameters
+ *
+ *  @return success
  */
-void ProcessFormatOption(const std::string &formatOption, const std::string &inputTreeName, const std::string &geomFileName,
+bool ProcessFormatOption(const std::string &formatOption, const std::string &inputTreeName, const std::string &geomManagerName,
     const std::string &geomVolName, const std::string &sensDetName, Parameters &parameters);
 
 /**

@@ -1,57 +1,138 @@
 # LArRecoND
-<!-- [![Build Status](https://travis-ci.org/PandoraPFA/LArRecoND.svg?branch=master)](https://travis-ci.org/PandoraPFA/LArRecoND) -->
-<!-- [![Coverity Scan Build Status](https://scan.coverity.com/projects/13060/badge.svg)](https://scan.coverity.com/projects/pandorapfa-larrecond) -->
 
-Standalone Pandora application for developing and testing DUNE ND reconstruction.
+Standalone Pandora application for developing and running DUNE ND reconstruction.
 
-**Environment setup**
+## Building Pandora with LArRecoND
 
-Make sure your computer can use [CVMFS](https://cvmfs.readthedocs.io/en/stable/cpt-quickstart.html).
+The [build.sh](scripts/build.sh) script contains a recipe for building LArRecoND with all of the required
+[Pandora](https://github.com/PandoraPFA) packages, based on the instructions from
+[PandoraPFA/Documentation](https://github.com/PandoraPFA/Documentation#2-using-cmake-for-each-individual-package),
+using the versions defined in [tags.sh](scripts/tags.sh). This just requires the [ROOT](https://root.cern/install)
+software to be installed on the system or available using an appropriate
+[CVMFS](https://cvmfs.readthedocs.io/en/stable/cpt-quickstart.html) repository.
+The build script also sets up the [Eigen](https://gitlab.com/libeigen/eigen) header library for
+[LArContent](https://github.com/PandoraPFA/LArContent).
 
-Setup the environment by sourcing the [envDUNE.sh](envDUNE.sh) script, which accepts an optional argument
-to set the $MY_TEST_AREA environment variable that specifies the working directory where all of the
-packages will be placed (defaults to the current directory):
+Before building the software, the Pandora package versions need to be defined by sourcing the
+[tags.sh](scripts/tags.sh) script, which also accepts an optional argument to set the
+$MY_TEST_AREA environment variable, which specifies the working directory where all of the packages
+will be placed (which defaults to the current directory if it is not given):
 
 ```Shell
-source envDUNE.sh MyTestAreaDirPath
+source tags.sh MyTestAreaDirPath
+source build.sh
 ```
 
-If there are problems doing this, then try using a container such as
-[apptainer](https://apptainer.org/docs/admin/main/installation.html) before running the script:
+### Alma9 environment at FNAL
+
+The [Alma9_FNAL.sh](scripts/Alma9_FNAL.sh) script can be used to setup the cmake, gcc and ROOT environment at FNAL.
+This also defines the Pandora package versions using the [tags.sh](scripts/tags.sh) script, with an optional argument
+to set the $MY_TEST_AREA environment variable (which defaults to the current directory if left out). Then the
+[build.sh](scripts/build.sh) script can be used to build Pandora along with LArRecoND. Note that building with
+LibTorch and/or edep-sim (Geant4 with CLHEP) is not currently possible within this environment, since the required
+software versions for these extra packages are not yet available or compatible.
+
+```Shell
+source Alma9_FNAL.sh MyTestAreaDirPath
+source build.sh
+```
+
+### SL7 environment in FNAL container
+
+The [ContainerSL7_FNAL.sh](scripts/ContainerSL7_FNAL.sh) script sets up the SL7 environment using an
+[apptainer](https://apptainer.org/docs/admin/main/installation.html) container on the FNAL computers:
+
+```Shell
+source ContainerSL7_FNAL.sh
+source SL7_FNAL.sh MyTestAreaDirPath
+source build.sh
+```
+
+Note that you cannot mix the Alma9 and SL7 environments, i.e. sourcing [Alma9_FNAL.sh](scripts/Alma9_FNAL.sh)
+followed by [SL7_FNAL.sh](scripts/SL7_FNAL.sh) will give compiler and other environment errors. It is best to
+always start a fresh interactive terminal session for whatever build environment you need to use.
+
+The SL7 environment can also be used to build LArRecoND with LibTorch (used for Deep Learning Vertexing)
+and/or edep-sim enabled, as described below.
+
+To use an FNAL-related SL7 CVMFS container for building the code on your laptop or work/home unix PC, do
+(along with any other extra apptainer settings you need, such as adding more comma-separated
+`-B` directory paths):
 
 ```Shell
 apptainer shell -B /cvmfs/ /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7\:latest/
-source envDUNE.sh MyTestAreaDirPath
+source SL7_FNAL.sh MyTestAreaDirPath
+source build.sh
 ```
 
-**Building Pandora and LArRecoND software**
+### Building with LibTorch for using Deep Learning Vertexing
 
-The [doBuild.sh](doBuild.sh) script contains a recipe for building LArRecoND and Pandora,
-along with [edep-sim](https://github.com/ClarkMcGrew/edep-sim). This is based on instructions from the
-[PandoraPFA/Documentation](https://github.com/PandoraPFA/Documentation#2-using-cmake-for-each-individual-package)
-area. Note that extra cmake variables for LArContent and LArRecoND are needed to enable the Deep Learning (DL)
-software. If different tags, branches or git forks are used, then rebuild the appropriate code by deleting and
-remaking the `build` directories of the affected packages.
+The [buildDLVtx.sh](scripts/buildDLVtx.sh) script contains the recipe for building LArRecoND with LibTorch v1.6.0
+that is needed for using the Deep Learning Vertexing. This also requires building LArContent
+(which contains the vertexing algorithm) with LibTorch turned on. This recipe uses the LibTorch library that is
+available on CVMFS using a container with the SL7 environment on Fermilab computers (replace the first script
+appropriately for your own laptop/PC container setup):
+
+```Shell
+source ContainerSL7_FNAL.sh
+source SL7_FNAL.sh MyTestAreaDirPath
+source buildDLVtx.sh
+```
+
+### Building with edep-sim (and LibTorch)
+
+The [buildEDepSimDLVtx.sh](scripts/buildEDepSimDLVtx.sh) script contains the recipe for building LArRecoND with
+[edep-sim](https://github.com/ClarkMcGrew/edep-sim) enabled as well as LibTorch for the Deep Learning Vertexing.
+This requires building edep-sim with
+[Geant4](https://geant4-userdoc.web.cern.ch/UsersGuides/InstallationGuide/html/)
+(and [CLHEP](https://proj-clhep.web.cern.ch/proj-clhep/)).
+The build script uses compatible libraries from CVMFS using a container with the SL7 environment on Fermilab
+computers (replace the first script appropriately for your own laptop/PC container setup):
+
+```Shell
+source ContainerSL7_FNAL.sh
+source SL7_FNAL.sh MyTestAreaDirPath
+source buildEDepSimDLVtx.sh
+```
+
+### LArMachineLearningData
 
 Various neutrino algorithms need to use MicroBooNE/SBND and DUNE training files from the
-[LArMachineLearningData](https://github.com/PandoraPFA/LArMachineLearningData) package.
-These need to be downloaded from google drive using the
+[LArMachineLearningData](https://github.com/PandoraPFA/LArMachineLearningData) package. These need to be
+downloaded from Google Drive using the
 [download.sh](https://github.com/PandoraPFA/LArMachineLearningData/blob/master/download.sh) script:
 
 ```Shell
+cd $MY_TEST_AREA/LArMachineLearningData
 source download.sh sbnd
 source download.sh dune
 source download.sh dunend
 ```
 
-This should only be done once (for each data set), as repeated attempts to download them will eventually fail,
-owing to download bandwidth restrictions imposed by google drive. If download warnings do occur, then waiting
-around 1 day before trying again should reinstate download access.
+This should only be done once for each new data set, since repeated attempts to download them will eventually fail,
+owing to automatic download bandwidth restrictions imposed by Google Drive. If download problems do occur, then you
+will need to wait up to 1 day (12 to 24 hours) before trying again.
 
-**Running LArRecoND**
 
-First, make sure the DUNE, Pandora and edep-sim environment is setup by sourcing the [setup.sh](setup.sh)
-script for each new terminal/interactive session.
+## Running LArRecoND
+
+For each new terminal/interactive session, make sure the environment is setup by first running either the
+[tags.sh](scripts/tags.sh), [Alma9_FNAL.sh](scripts/Alma9_FNAL.sh) or [SL7_FNAL.sh](scripts/SL7_FNAL.sh) scripts, where
+the optional MyTestAreaDirPath parameter sets the $MY_TEST_AREA environment variable (which defaults to the current
+working directory if this is not provided):
+
+```Shell
+source tags.sh MyTestAreaDirPath
+```
+
+```Shell
+source Alma9_FNAL.sh MyTestAreaDirPath
+```
+
+```Shell
+source ContainerSL7_FNAL.sh
+source SL7_FNAL.sh MyTestAreaDirPath
+```
 
 The LArRecoND software is run by using the `PandoraInterface` executable, which is created from the
 [PandoraInterface.cxx](test/PandoraInterface.cxx) main program that is steered with xml files from the
@@ -65,47 +146,117 @@ If everything has been built correctly, running
 cd $MY_TEST_AREA/LArRecoND
 ./bin/PandoraInterface -h
 ``` 
+
 will list all available (required and optional) run options.
 
-Here is an example of running the code using DL vertexing along with storing the MC and reco information
-using hierarchy tools:
+If you get runtime warnings about missing parameter files, then make sure they are downloaded in the
+[LArMachineLearningData](#larmachinelearningdata) directory and their relative locations are specified
+by the $FW_SEARCH_PATH environment variable, which is set by the [tags.sh](scripts/tags.sh) script.
+
+### Geometry files
+
+The ND-LAr geometry needs to be provided as a ROOT file containing the
+[TGeoManager](https://root.cern.ch/doc/master/classTGeoManager.html) object, specified by the `-g` run parameter.
+These can be created from [GDML](https://gdml.web.cern.ch/GDML/) files using ROOT:
+
+```Shell
+root -l
+TGeoManager::Import("GeometryFile.gdml")
+gGeoManager->Export("GeometryFile.root")
+.q
+```
+
+The GDML files for the 2x2 ArgonCube prototype geometry are available in the
+[2x2_sim/geometry](https://github.com/DUNE/2x2_sim/tree/develop/geometry) repository.
+
+### 2x2 data
+
+The following example can be used to run LArRecoND 3D-clustering and 2D-projection neutrino reconstruction
+algorithms (without deep learning vertexing) for the first 10 events from a 2x2 data file:
 
 ```Shell
 cd $MY_TEST_AREA/LArRecoND
-./bin/PandoraInterface -i settings/PandoraSettings_LArRecoND_DLHierarchy.xml \
--r AllHitsNu -e LArEDepSim_numu_all_1.root -j LArTPC -N -n 10 -d ArgonCube
+./bin/PandoraInterface -i settings/PandoraSettings_LArRecoND_ThreeD.xml \
+-r AllHitsNu -e Input2x2Data.root -g Geometry2x2.root -n 10 -N
 ```
 
-where the mandatory settings `-i`, `-r` and `-e` specify the xml steering file, reconstruction hit type
-and the full name of the input file containing events (hit collections) in the default `EDepSim` format,
-respectively. The option `-j` sets the hit projection method, `-N` prints out event info, `-n` sets the
-number of events (in this case 10), while `-d` defines the Geant4 sensitive detector name containing
-the hits we want to reconstruct.
+where the mandatory settings `-i`, `-r`, `-e` and `-g` specify the xml steering run file, reconstruction hit method,
+the input data ROOT file containing the hits and the geometry ROOT file, respectively. The `-n` option sets the
+number of events (in this case 10) while `-N` prints out event information.
 
+The input hit data ROOT file uses the default [SpacePoint](include/LArSP.h) format, which needs to be previously
+converted from the original HDF5 format by the [ndlarflow/h5_to_root_ndlarflow.py](ndlarflow/h5_to_root_ndlarflow.py) script.
+
+To use deep learning vertexing (DLVtx), make sure LArRecoND and LArContent is first built with LibTorch enabled, then use
+the [PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml) settings file.
 You can tell if the DL vertexing is running if you see messages such as
-`Loaded the TorchScript model PandoraNetworkDataFileName.pt` after the creation of the first event voxels.
+`Loaded the TorchScript model PandoraNetworkDataFileName.pt` when the first event is getting processed.
 
-Another example running both 3D and LArTPC reconstruction with DL vertexing and hierarchy tools on
-2x2 MiniRun4 simulation data (5 events) is:
+### 2x2 simulation
+
+The following example can be used to run LArRecoND 3D-clustering and 2D-projection neutrino reconstruction
+algorithms (without deep learning vertexing) for the first 10 events from a 2x2 Monte Carlo (MC) file:
 
 ```Shell
 cd $MY_TEST_AREA/LArRecoND
-./bin/PandoraInterface -i settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml -j both -N -r AllHitsSliceNu \
--f SPMC -g data/MiniRun4/Merged2x2MINERvA_v3_withRock.root -k events -t Default -d volLArActive \
--v volArgonCubeDetector_PV -M -s 0 -n 5 -e data/MiniRun4/MiniRun4_1E19_RHC.flow.00001.FLOWTestMergedhits.root
+./bin/PandoraInterface -i settings/PandoraSettings_LArRecoND_ThreeD.xml \
+-r AllHitsNu -e Input2x2MC.root -g Geometry2x2.root -f SPMC -n 10 -N
 ```
 
-Here, the hits are in SpacePoint MC [(SPMC)](include/LArSPMC.h) format (`-f`) from the `events` tree (`-k`)
-inside the ROOT input file (`-e`). The geometry is set by the ROOT file specified by the `-g` option, along
-with the physical placement geometry (`-v`) and sensitive (`-d`) detector names that belong to the
-[TGeoManager](https://root.cern.ch/doc/master/classTGeoManager.html) object (`-t`) called `Default`.
+where the mandatory settings `-i`, `-r`, `-e` and `-g` specify the xml steering run file, reconstruction hit method,
+the input MC ROOT file containing the hits and the geometry ROOT file, respectively. The `-f SPMC` option sets the
+input to use the [SpacePoint MC](include/LArSPMC.h) format, which stores all of the MC truth information;
+this is not done by the default `-f SP` format option (the ROOT data structures are different).
+The `-n` option sets the number of events (in this case 10) while `-N` prints out event information.
+
+The input MC ROOT file needs to be previously converted from the original HDF5 format by the
+[ndlarflow/h5_to_root_ndlarflow.py](ndlarflow/h5_to_root_ndlarflow.py) script.
+
+To use deep learning vertexing (DLVtx), make sure LArRecoND and LArContent is first built with LibTorch enabled, then use
+the [PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml) settings file.
+
+### edep-sim
+
+The following example can be used to run LArRecoND 3D-clustering and 2D-projection neutrino reconstruction
+algorithms (without deep learning vertexing) for the first 10 events from an edep-sim MC file:
+
+```Shell
+cd $MY_TEST_AREA/LArRecoND
+./bin/PandoraInterface -i settings/PandoraSettings_LArRecoND_ThreeD.xml \
+-r AllHitsNu -e EDepSimMC.root -g EDepSimMC.root -f EDepSim -n 10 -N
+```
+
+where the mandatory settings `-i`, `-r`, `-e` and `-g` specify the xml steering run file, reconstruction hit method,
+the input ROOT file containing the hits and the geometry ROOT file, respectively. The `-f EDepSim` option sets the
+input to use the [edep-sim format](https://github.com/ClarkMcGrew/edep-sim/tree/master/io), which also stores all of the
+available MC truth information. The `-n` option sets the number of events (in this case 10) while `-N` prints out
+event information. Usually, the TGeoManager geometry information is stored in the ROOT input file, so the same
+filename should be used for both the `-e` and `-g` options if this is indeed the case.
+
+To use deep learning vertexing (DLVtx), make sure LArRecoND and LArContent is first built with LibTorch enabled, then use
+the [PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml) settings file.
+
+### Event displays
+
+Pandora uses ROOT's [TEve](https://root.cern/doc/master/group__TEve.html) module for event displays in monitoring algorithms such as
+[LArVisualMonitoring](https://github.com/PandoraPFA/LArContent/blob/master/larpandoracontent/LArMonitoring/VisualMonitoringAlgorithm.cc#L364).
+This is enabled in the [PandoraSettings_LArRecoND_ThreeD.xml](settings/PandoraSettings_LArRecoND_ThreeD.xml) settings
+file, for example. Calling the `LArVisualMonitoring` algorithm at specific locations in the xml file will run the event display
+at that point in the reconstruction algorithm flow. To disable the event display (e.g. to run in batch jobs or if there are display
+problems with ROOT), set the global `IsMonitoringEnabled` variable to false in the xml run file:
+
+```xml
+    <IsMonitoringEnabled>false</IsMonitoringEnabled>
+```
+
 
 ## Fermigrid jobs
 
-The template python script [createFNALJobs.py](createFNALJobs.py) can be used to submit LArRecoND jobs
-on the [Fermigrid](https://dune.github.io/computing-basics/07-grid-job-submission/index.html) batch system.
+The template python script [createFNALJobs.py](scripts/createFNALJobs.py) can be used to submit LArRecoND jobs
+(in SL7 containers) on the [Fermigrid](https://dune.github.io/computing-basics/07-grid-job-submission/index.html)
+batch system.
 
-It has example settings for submitting edep-sim and MiniRun4 reconstruction jobs, and it should be
+It has example settings for submitting MiniRun4 or edep-sim reconstruction jobs, and it should be
 relatively straightforward to extend or modify it to deal with other event samples. It uses objects
 to define the setup, geometry and reconstruction parameters, which change depending on the number and
 format of the sample input files. The required Pandora packages and xml steering files are stored in a tarball

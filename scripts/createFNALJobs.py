@@ -122,7 +122,7 @@ class jobPars(object):
 
     def __init__(self, sample, inputDir, nEvtJob, runtime = '8h', memory = '2000MB'):
 
-        # Sample name, e.g. numu_all or MiniRun4
+        # Sample name, e.g. MiniRun4 or numu_all
         self.sample = sample
 
         # Directory containing the Pandora ROOT input files
@@ -412,28 +412,6 @@ def createJobs(sPars, gPars, rPars):
     runAllFile.close()
 
 
-def runEDepSim():
-
-    print('runEDepSim')
-
-    # Setup parameters
-    minSample = 1
-    nSamples = 10
-    nEvtJob = 100
-    firstEvt = 0
-    sPars = setupPars('numu_all', minSample, nSamples, 'EDepSimFiles/numu_all',
-                      firstEvt, nEvtJob, 'EDepSimEvents', 'EDepSim')
-
-    # Geometry parameters
-    gPars = geomPars('volArgonCubeDetector_PV_0', 'ArgonCube', True, '', 'EDepSimGeometry')
-
-    # Run parameters
-    rPars = recoPars('PandoraSettings_LArRecoND_ThreeD_DLVtx.xml', 'both', 'AllHitsNu', True)
-
-    # Create the job scripts
-    createJobs(sPars, gPars, rPars)
-
-
 def runMiniRun4():
 
     print('runMiniRun4')
@@ -458,10 +436,32 @@ def runMiniRun4():
     createJobs(sPars, gPars, rPars)
 
 
+def runEDepSim():
+
+    print('runEDepSim')
+
+    # Setup parameters
+    minSample = 1
+    nSamples = 10
+    nEvtJob = 100
+    firstEvt = 0
+    sPars = setupPars('numu_all', minSample, nSamples, 'EDepSimFiles/numu_all',
+                      firstEvt, nEvtJob, 'EDepSimEvents', 'EDepSim')
+
+    # Geometry parameters
+    gPars = geomPars('volArgonCubeDetector_PV_0', 'ArgonCube', True, '', 'EDepSimGeometry')
+
+    # Run parameters
+    rPars = recoPars('PandoraSettings_LArRecoND_ThreeD_DLVtx.xml', 'both', 'AllHitsNu', True)
+
+    # Create the job scripts
+    createJobs(sPars, gPars, rPars)
+
+
 def processArgs(parser):
 
-    parser.add_argument('--option', default='EDepSim', metavar='Opt',
-                        help='Choose run option: EDepSim [default], MiniRun4')
+    parser.add_argument('--option', default='MiniRun4', metavar='Opt',
+                        help='Choose run option: MiniRun4, EDepSim')
 
 
 def run():
@@ -471,10 +471,10 @@ def run():
     processArgs(parser)
     args = parser.parse_args()
 
-    if args.option == 'MiniRun4':
-        runMiniRun4()
-    else:
+    if args.option == 'EDepSim':
         runEDepSim()
+    else:
+        runMiniRun4()
 
 
 if __name__ == '__main__':

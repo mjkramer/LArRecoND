@@ -53,7 +53,10 @@ if(PANDORA_MONITORING)
     find_package(ROOT 6.18.04 REQUIRED COMPONENTS Eve Geom RGL EG)
 endif()
 
-find_package(EDepSim)
+if(USE_EDEPSIM)
+  find_package(EDepSim)
+  add_definitions("-DUSE_EDEPSIM")
+endif()
 
 #-------------------------------------------------------------------------------------------------------------------------------------------
 # Low level settings - compiler etc
@@ -81,7 +84,11 @@ set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${${PROJECT_NAME}_VERSI
 add_executable(PandoraInterface ${PROJECT_SOURCE_DIR}/test/PandoraInterface.cxx)
 if(PANDORA_MONITORING)
     include_directories(${ROOT_INCLUDE_DIRS})
-    target_link_libraries(PandoraInterface ${ROOT_LIBRARIES} EDepSim::edepsim_io)
+    if(USE_EDEPSIM)
+        target_link_libraries(PandoraInterface ${ROOT_LIBRARIES} EDepSim::edepsim_io)
+    else()
+        target_link_libraries(PandoraInterface ${ROOT_LIBRARIES})
+    endif()
 endif()
 target_link_libraries(PandoraInterface ${PROJECT_NAME})
 
