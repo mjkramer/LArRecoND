@@ -20,7 +20,7 @@
     </algorithm>
 
     <algorithm type = "LArMasterThreeD">
-      <CRSettingsFile>PandoraSettings_Cosmic_Standard.xml</CRSettingsFile>
+        <CRSettingsFile>PandoraSettings_Cosmic_Standard.xml</CRSettingsFile>
         <!--Use Deep Learning (DL) vertexing -->
         <NuSettingsFile>PandoraSettings_Neutrino_ThreeD_DLVtx.xml</NuSettingsFile>
         <SlicingSettingsFile>PandoraSettings_Slicing_ThreeD.xml</SlicingSettingsFile>
@@ -42,37 +42,50 @@
         <ShouldRemoveOutOfTimeHits>false</ShouldRemoveOutOfTimeHits>
     </algorithm>
 
-    <algorithm type = "LArMCParticleMonitoring">
-        <CaloHitListName>CaloHitList2D</CaloHitListName>
-        <MCParticleListName>Input</MCParticleListName>
-        <MinHitsForDisplay>0</MinHitsForDisplay>
-    </algorithm>
-
-    <algorithm type = "LArHierarchyValidation">
-        <ValidateEvent>true</ValidateEvent>
-        <WriteTree>true</WriteTree>
-	<Detector>dune_nd</Detector>
-        <FileName>EventHierarchy.root</FileName>
-        <TreeName>EventHierarchy</TreeName>
-        <FoldToPrimaries>true</FoldToPrimaries>
-    </algorithm>
-
-    <algorithm type = "LArHierarchyValidation">
-        <ValidateMC>true</ValidateMC>
-        <WriteTree>true</WriteTree>
-	<Detector>dune_nd</Detector>
-        <FileName>MCHierarchy.root</FileName>
-        <TreeName>MCHierarchy</TreeName>
-        <FoldToPrimaries>true</FoldToPrimaries>
-    </algorithm>
-
     <algorithm type = "LArHierarchyMonitoring">
         <PerformMatching>true</PerformMatching>
         <CollectionOnly>false</CollectionOnly>
     </algorithm>
 
+    <algorithm type = "LArHierarchyAnalysis">
+        <CaloHitListName>CaloHitList2D</CaloHitListName>
+        <PfoListName>RecreatedPfos</PfoListName>
+        <AnalysisFileName>LArRecoND.root</AnalysisFileName>
+        <AnalysisTreeName>LArRecoND</AnalysisTreeName>
+        <FoldToPrimaries>true</FoldToPrimaries>
+        <MinPurity>0.5</MinPurity>
+        <MinCompleteness>0.1</MinCompleteness>
+        <MinRecoHits>15</MinRecoHits>
+        <MinRecoHitsPerView>5</MinRecoHitsPerView>
+        <MinRecoGoodViews>2</MinRecoGoodViews>
+        <RemoveRecoNeutrons>true</RemoveRecoNeutrons>
+    </algorithm>
+
+<!-- LArContent hierarchy tools MC and event-level information
+    <algorithm type = "LArHierarchyValidation">
+        <CaloHitListName>CaloHitList2D</CaloHitListName>
+        <PfoListName>RecreatedPfos</PfoListName>
+        <Detector>dune_nd</Detector>
+        <ValidateMC>true</ValidateMC>
+        <WriteMCTree>true</WriteMCTree>
+        <MCFileName>MCHierarchy.root</MCFileName>
+        <MCTreeName>MC</MCTreeName>
+        <ValidateEvent>true</ValidateEvent>
+        <WriteEventTree>true</WriteEventTree>
+        <EventFileName>EventHierarchy.root</EventFileName>
+        <EventTreeName>Events</EventTreeName>
+        <FoldToPrimaries>true</FoldToPrimaries>
+        <MinPurity>0.5</MinPurity>
+        <MinCompleteness>0.1</MinCompleteness>
+        <MinRecoHits>15</MinRecoHits>
+        <MinRecoHitsPerView>5</MinRecoHitsPerView>
+        <MinRecoGoodViews>2</MinRecoGoodViews>
+        <RemoveRecoNeutrons>true</RemoveRecoNeutrons>
+    </algorithm>
+-->
+
 <!-- Use old single neutrino event validation
-     <algorithm type = "LArNeutrinoEventValidation">
+    <algorithm type = "LArNeutrinoEventValidation">
         <CaloHitListName>CaloHitList2D</CaloHitListName>
         <MCParticleListName>Input</MCParticleListName>
         <PfoListName>RecreatedPfos</PfoListName>

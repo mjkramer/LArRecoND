@@ -243,7 +243,8 @@ Pandora uses ROOT's [TEve](https://root.cern/doc/master/group__TEve.html) module
 This is enabled in the [PandoraSettings_LArRecoND_ThreeD.xml](settings/PandoraSettings_LArRecoND_ThreeD.xml) settings
 file, for example. Calling the `LArVisualMonitoring` algorithm at specific locations in the xml file will run the event display
 at that point in the reconstruction algorithm flow. To disable the event display (e.g. to run in batch jobs or if there are display
-problems with ROOT), set the global `IsMonitoringEnabled` variable to false in the xml run file:
+problems with ROOT), comment out or remove the visual monitoring calls in the xml run file, or set the global
+`IsMonitoringEnabled` variable to false (which also disables the ROOT output from the hierarchy validation tools):
 
 ```xml
     <IsMonitoringEnabled>false</IsMonitoringEnabled>
