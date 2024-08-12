@@ -230,7 +230,7 @@ where the mandatory settings `-i`, `-r`, `-e` and `-g` specify the xml steering 
 the input ROOT file containing the hits and the geometry ROOT file, respectively. The `-f EDepSim` option sets the
 input to use the [edep-sim format](https://github.com/ClarkMcGrew/edep-sim/tree/master/io), which also stores all of the
 available MC truth information. The `-n` option sets the number of events (in this case 10) while `-N` prints out
-event information. Usually, the TGeoManager geometry information is stored in the ROOT input file, so the same
+event information. Usually, the TGeoManager geometry information is stored in the event input ROOT file, so the same
 filename should be used for both the `-e` and `-g` options if this is indeed the case.
 
 To use deep learning vertexing (DLVtx), make sure LArRecoND and LArContent is first built with LibTorch enabled, then use
@@ -249,6 +249,47 @@ problems with ROOT), comment out or remove the visual monitoring calls in the xm
 ```xml
     <IsMonitoringEnabled>false</IsMonitoringEnabled>
 ```
+
+### Hierarchy Tools validation and analysis output
+
+The [HierarchyAnalysisAlgorithm.cc](src/HierarchyAnalysisAlgorithm.cc) class uses
+[Hierarchy Tools](https://github.com/PandoraPFA/Documentation/blob/master/Hierarchy_Tools/Hierarchy_Tools_Overview.pdf)
+to create an output ROOT file that contains summary information about the reconstructed Particle Flow Objects (PFOs)
+and their best-matched MC particles. The hierarchy structure and logic is implemented by LArContent's
+[LArHierarchyHelper](https://github.com/PandoraPFA/LArContent/blob/master/larpandoracontent/LArHelpers/LArHierarchyHelper.h)
+class. The hierarchy analysis algorithm is enabled using the following example xml settings:
+
+```xml
+   <algorithm type = "LArHierarchyAnalysis">
+        <CaloHitListName>CaloHitList2D</CaloHitListName>
+        <PfoListName>RecreatedPfos</PfoListName>
+        <AnalysisFileName>LArRecoND.root</AnalysisFileName>
+        <AnalysisTreeName>LArRecoND</AnalysisTreeName>
+        <FoldToPrimaries>true</FoldToPrimaries>
+        <MinPurity>0.5</MinPurity>
+        <MinCompleteness>0.1</MinCompleteness>
+        <MinRecoHits>15</MinRecoHits>
+        <MinRecoHitsPerView>5</MinRecoHitsPerView>
+        <MinRecoGoodViews>2</MinRecoGoodViews>
+        <RemoveRecoNeutrons>true</RemoveRecoNeutrons>
+    </algorithm>
+
+```
+
+This creates the [TTree](https://root.cern.ch/doc/master/classTTree.html) `LArRecoND` in the output ROOT file `LArRecoND.root`
+using the PFOs stored in Pandora's `RecreatedPfos` list along with the list of hits named `CaloHitList2D` (currently the
+hierarchy tools can only use the 2D views). The hierarchy building and matching requires minimum quality selection criteria,
+removes neutrons and folds all of the hierarchy to start from the initial neutrino primaries.
+
+The xml settings files [PandoraSettings_LArRecoND_ThreeD.xml](settings/PandoraSettings_LArRecoND_ThreeD.xml) and
+[PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml) contain
+(commented out) examples of using LArContent's
+[LArHierarchyValidation](https://github.com/PandoraPFA/LArContent/blob/master/larpandoracontent/LArMonitoring/HierarchyValidationAlgorithm.h)
+algorithm, which can be used to create event and particle-level ROOT output files that contain much more detail of the hierarchy than the
+above LArRecoND analysis algorithm, such as complete lists of all possible reco-MC matches.
+The xml files also contain (commented out) examples of using the MicroBooNE validation algorithm
+[LArNeutrinoEventValidation](https://github.com/PandoraPFA/LArContent/blob/master/larpandoracontent/LArMonitoring/NeutrinoEventValidationAlgorithm.h),
+which only works for events containing single neutrino interactions (with cosmic rays).
 
 
 ## Fermigrid jobs
