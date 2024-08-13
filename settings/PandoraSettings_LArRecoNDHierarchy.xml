@@ -44,20 +44,25 @@
     </algorithm>
 
     <algorithm type = "LArHierarchyValidation">
-        <ValidateEvent>true</ValidateEvent>
-	<WriteTree>true</WriteTree>
-	<FileName>EventHierarchy.root</FileName>
-	<TreeName>EventHierarchy</TreeName>
-	<FoldToPrimaries>true</FoldToPrimaries>
-    </algorithm>
-
-    <algorithm type = "LArHierarchyValidation">
+        <CaloHitListName>CaloHitList2D</CaloHitListName>
+        <PfoListName>RecreatedPfos</PfoListName>
+        <Detector>dune_nd</Detector>
         <ValidateMC>true</ValidateMC>
-	<WriteTree>true</WriteTree>
-	<FileName>MCHierarchy.root</FileName>
-	<TreeName>MCHierarchy</TreeName>
-	<FoldToPrimaries>true</FoldToPrimaries>
-    </algorithm>
+        <WriteMCTree>true</WriteMCTree>
+        <MCFileName>MCHierarchy.root</MCFileName>
+        <MCTreeName>MC</MCTreeName>
+        <ValidateEvent>true</ValidateEvent>
+        <WriteEventTree>true</WriteEventTree>
+        <EventFileName>EventHierarchy.root</EventFileName>
+        <EventTreeName>Events</EventTreeName>
+        <FoldToPrimaries>true</FoldToPrimaries>
+        <MinPurity>0.5</MinPurity>
+        <MinCompleteness>0.1</MinCompleteness>
+        <MinRecoHits>15</MinRecoHits>
+        <MinRecoHitsPerView>5</MinRecoHitsPerView>
+        <MinRecoGoodViews>2</MinRecoGoodViews>
+        <RemoveRecoNeutrons>true</RemoveRecoNeutrons>
+   </algorithm>
 
     <algorithm type = "LArHierarchyMonitoring">
         <PerformMatching>true</PerformMatching>
