@@ -263,8 +263,8 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
                 mcNuIdVect.emplace_back(mcNuId);
                 mcNuCodeVect.emplace_back(mcNuCode);
                 mcNuVtxXVect.emplace_back(mcNuVertex.GetX());
-                mcNuVtxXVect.emplace_back(mcNuVertex.GetY());
-                mcNuVtxXVect.emplace_back(mcNuVertex.GetZ());
+                mcNuVtxYVect.emplace_back(mcNuVertex.GetY());
+                mcNuVtxZVect.emplace_back(mcNuVertex.GetZ());
                 mcNuEVect.emplace_back(mcNuEnergy);
                 mcNuPxVect.emplace_back(mcNuMomentum.GetX());
                 mcNuPyVect.emplace_back(mcNuMomentum.GetY());
