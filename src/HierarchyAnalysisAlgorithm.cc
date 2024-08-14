@@ -13,13 +13,23 @@
 #include "larpandoracontent/LArHelpers/LArClusterHelper.h"
 #include "larpandoracontent/LArHelpers/LArPfoHelper.h"
 
+#include "TFile.h"
+#include "TTree.h"
+
 using namespace pandora;
 
 namespace lar_content
 {
 
 HierarchyAnalysisAlgorithm::HierarchyAnalysisAlgorithm() :
+    m_count{-1},
     m_event{-1},
+    m_eventFileName{""},
+    m_eventTreeName{"events"},
+    m_eventLeafName{"event"},
+    m_eventsToSkip{0},
+    m_eventFile{nullptr},
+    m_eventTree{nullptr},
     m_caloHitListName{"CaloHitList2D"},
     m_pfoListName{"RecreatedPfos"},
     m_analysisFileName{"LArRecoND.root"},
@@ -40,14 +50,25 @@ HierarchyAnalysisAlgorithm::HierarchyAnalysisAlgorithm() :
 
 HierarchyAnalysisAlgorithm::~HierarchyAnalysisAlgorithm()
 {
-    PANDORA_MONITORING_API(SaveTree(this->GetPandora(), m_analysisTreeName.c_str(), m_analysisFileName.c_str(), "UPDATE"));
+    // Save the analysis output ROOT file. Always recreate this
+    PANDORA_MONITORING_API(SaveTree(this->GetPandora(), m_analysisTreeName.c_str(), m_analysisFileName.c_str(), "RECREATE"));
+
+    // Cleanup ROOT file used for the event numbers
+    if (m_eventFile && m_eventFile->IsOpen())
+    {
+        delete m_eventTree;
+        m_eventTree = nullptr;
+    }
+    delete m_eventFile;
+    m_eventFile = nullptr;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 StatusCode HierarchyAnalysisAlgorithm::Run()
 {
-    ++m_event;
+    // Increment the algorithm run count
+    ++m_count;
 
     // Need to use 2D calo hit list for now since LArHierarchyHelper::MCHierarchy::IsReconstructable()
     // checks for minimum number of hits in the U, V & W views only, which will fail for 3D
@@ -79,9 +100,29 @@ StatusCode HierarchyAnalysisAlgorithm::Run()
     LArHierarchyHelper::MatchHierarchies(matchInfo);
     matchInfo.Print(mcHierarchy);
 
+    // Set the event number
+    this->SetEventNumber();
+
+    // Analysis PFO & matched reco-MC output
     this->EventAnalysisOutput(matchInfo);
 
     return STATUS_CODE_SUCCESS;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void HierarchyAnalysisAlgorithm::SetEventNumber()
+{
+    // Set the event number
+    if (m_eventTree)
+    {
+        // This will set m_event
+        const int iEntry = m_count + m_eventsToSkip;
+        m_eventTree->GetEntry(iEntry);
+    }
+    else
+        // Use the algorithm run count number
+        m_event = m_count;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -412,6 +453,28 @@ HierarchyAnalysisAlgorithm::RecoMCMatch::RecoMCMatch(const pandora::MCParticle *
 
 StatusCode HierarchyAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
 {
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EventFileName", m_eventFileName));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EventTreeName", m_eventTreeName));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EventLeafName", m_eventLeafName));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EventsToSkip", m_eventsToSkip));
+
+    // Setup the event ROOT file
+    if (m_eventFileName.size() > 0)
+    {
+        m_eventFile = TFile::Open(m_eventFileName.c_str(), "READ");
+        if (m_eventFile && m_eventFile->IsOpen())
+        {
+            m_eventTree = dynamic_cast<TTree *>(m_eventFile->Get(m_eventTreeName.c_str()));
+            if (m_eventTree)
+            {
+                // Only enable the event number leaf
+                m_eventTree->SetBranchStatus("*", 0);
+                m_eventTree->SetBranchStatus(m_eventLeafName.c_str(), 1);
+                m_eventTree->SetBranchAddress(m_eventLeafName.c_str(), &m_event);
+            }
+        }
+    }
+
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "CaloHitListName", m_caloHitListName));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "PfoListName", m_pfoListName));
 

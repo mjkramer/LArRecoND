@@ -15,6 +15,9 @@
 
 #include "larpandoracontent/LArHelpers/LArHierarchyHelper.h"
 
+class TFile;
+class TTree;
+
 namespace lar_content
 {
 
@@ -61,6 +64,12 @@ private:
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
 
     /**
+     *  @brief  Set the event number
+     *
+     */
+    void SetEventNumber();
+
+    /**
      *  @brief  Create the analysis output using hierarchy tools
      *
      *  @param  matchInfo The object containing the reco and MC hierarchies
@@ -89,7 +98,14 @@ private:
     const RecoMCMatch GetRecoMCMatch(const LArHierarchyHelper::RecoHierarchy::Node *pRecoNode,
         const LArHierarchyHelper::MatchInfo &matchInfo, pandora::MCParticleList &rootMCParticles) const;
 
-    int m_event;                       ///< The current event
+    int m_count;                       ///< The number of times the Run() function has been called
+    int m_event;                       ///< The actual event number
+    std::string m_eventFileName;       ///< Name of the ROOT TFile containing the event numbers
+    std::string m_eventTreeName;       ///< Name of the ROOT TTree containing the event numbers
+    std::string m_eventLeafName;       ///< Name of the event number leaf/variable
+    int m_eventsToSkip;                ///< The number of events to skip (from the start of the event file)
+    TFile *m_eventFile;                ///< The ROOT event file pointer
+    TTree *m_eventTree;                ///< The ROOT event tree pointer
     std::string m_caloHitListName;     ///< Name of input calo hit list
     std::string m_pfoListName;         ///< Name of input PFO list
     std::string m_analysisFileName;    ///< The name of the analysis ROOT file to write
