@@ -281,6 +281,25 @@ using the PFOs stored in Pandora's `RecreatedPfos` list along with the list of h
 hierarchy tools can only use the 2D views). The hierarchy building and matching requires minimum quality selection criteria,
 removes neutrons and folds all of the hierarchy to start from the initial neutrino primaries.
 
+The hierarchy analysis algorithm sets the event number by incrementing the number of times the `Run()` function is called
+(0 to N-1 for N events). If the `-e` input file contains event numbers that are not contiguous, then the following xml
+parameter settings (which must be added to the previous ones) need to be included to set the event numbers correctly:
+
+```xml
+    <algorithm type = "LArHierarchyAnalysis">
+        <EventFileName>EventFile.root</EventFileName>
+        <EventTreeName>events</EventTreeName>
+        <EventLeafName>event</EventLeafName>
+        <EventsToSkip>0</EventsToSkip>
+    </algorithm>
+```
+
+Here, `EventFileName` needs to match the input file name specified by the `-e` run parameter, `EventTreeName` defines what TTree
+contains the event numbers (which defaults to `events`) and `EventLeafName` defines the name of the event number variable
+(which defaults to `event`). This workaround is needed since it is currently not possible to pass event (and run) number information
+between Pandora algorithms. By default, no events are skipped, but if the `-s` run option is used, then `EventsToSkip` must be equal
+to this integer to ensure that the correct event numbers are found.
+
 The xml settings files [PandoraSettings_LArRecoND_ThreeD.xml](settings/PandoraSettings_LArRecoND_ThreeD.xml) and
 [PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml) contain
 (commented out) examples of using LArContent's

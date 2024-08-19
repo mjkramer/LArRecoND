@@ -47,6 +47,12 @@
     </algorithm>
 
     <algorithm type = "LArHierarchyAnalysis">
+        <!-- Enable the following if the input file has event numbers that are not contiguous from 0 to N-1
+        <EventFileName>EventFile.root</EventFileName>
+	<EventTreeName>events</EventTreeName>
+	<EventLeafName>event</EventLeafName>
+	<EventsToSkip>0</EventsToSkip>
+        -->
 	<CaloHitListName>CaloHitList2D</CaloHitListName>
 	<PfoListName>RecreatedPfos</PfoListName>
         <AnalysisFileName>LArRecoND.root</AnalysisFileName>
