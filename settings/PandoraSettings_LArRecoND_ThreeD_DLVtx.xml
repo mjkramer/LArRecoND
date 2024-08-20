@@ -48,10 +48,14 @@
     </algorithm>
 
     <algorithm type = "LArHierarchyAnalysis">
-        <!-- Enable the following if the input file has event numbers that are not contiguous from 0 to N-1
+        <!-- Enable the following to store event, run and timing information
         <EventFileName>EventFile.root</EventFileName>
 	<EventTreeName>events</EventTreeName>
 	<EventLeafName>event</EventLeafName>
+	<RunLeafName>run</RunLeafName>
+	<SubRunLeafName>subrun</SubRunLeafName>
+	<StartTimeName>event_start_t</StartTimeName>
+	<EndTimeName>event_end_t</EndTimeName>
 	<EventsToSkip>0</EventsToSkip>
         -->
         <CaloHitListName>CaloHitList2D</CaloHitListName>
@@ -65,6 +69,7 @@
         <MinRecoHitsPerView>5</MinRecoHitsPerView>
         <MinRecoGoodViews>2</MinRecoGoodViews>
         <RemoveRecoNeutrons>true</RemoveRecoNeutrons>
+	<SelectRecoHits>true</SelectRecoHits>
     </algorithm>
 
 <!-- LArContent hierarchy tools MC and event-level information

@@ -283,22 +283,29 @@ removes neutrons and folds all of the hierarchy to start from the initial neutri
 
 The hierarchy analysis algorithm sets the event number by incrementing the number of times the `Run()` function is called
 (0 to N-1 for N events). If the `-e` input file contains event numbers that are not contiguous, then the following xml
-parameter settings (which must be added to the previous ones) need to be included to set the event numbers correctly:
+parameter settings (which must be added to the previous ones) need to be included to set the event numbers correctly
+(which include settings for also storing the run numbers and event timing information):
 
 ```xml
     <algorithm type = "LArHierarchyAnalysis">
         <EventFileName>EventFile.root</EventFileName>
         <EventTreeName>events</EventTreeName>
         <EventLeafName>event</EventLeafName>
+	<RunLeafName>run</RunLeafName>
+	<SubRunLeafName>subrun</SubRunLeafName>
+	<StartTimeName>event_start_t</StartTimeName>
+	<EndTimeName>event_end_t</EndTimeName>
         <EventsToSkip>0</EventsToSkip>
     </algorithm>
 ```
 
 Here, `EventFileName` needs to match the input file name specified by the `-e` run parameter, `EventTreeName` defines what TTree
 contains the event numbers (which defaults to `events`) and `EventLeafName` defines the name of the event number variable
-(which defaults to `event`). This workaround is needed since it is currently not possible to pass event (and run) number information
+(which defaults to `event`). This workaround is needed since it is currently not possible to pass event (and run) information
 between Pandora algorithms. By default, no events are skipped, but if the `-s` run option is used, then `EventsToSkip` must be equal
-to this integer to ensure that the correct event numbers are found.
+to this integer to ensure that the correct event numbers are found. The additional parameters `RunLeafName` and `SubRunLeafName`
+define the run and sub-run numbers, while `StartTimeName` and `EndTimeName` define the start and end trigger timing variables.
+If these are not provided, then they will all be set to zero.
 
 The xml settings files [PandoraSettings_LArRecoND_ThreeD.xml](settings/PandoraSettings_LArRecoND_ThreeD.xml) and
 [PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml) contain

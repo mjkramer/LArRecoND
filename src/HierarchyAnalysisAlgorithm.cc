@@ -24,9 +24,17 @@ namespace lar_content
 HierarchyAnalysisAlgorithm::HierarchyAnalysisAlgorithm() :
     m_count{-1},
     m_event{-1},
+    m_run{0},
+    m_subRun{0},
+    m_startTime{0},
+    m_endTime{0},
     m_eventFileName{""},
     m_eventTreeName{"events"},
     m_eventLeafName{"event"},
+    m_runLeafName{"run"},
+    m_subRunLeafName{"subrun"},
+    m_startTimeLeafName{"event_start_t"},
+    m_endTimeLeafName{"event_end_t"},
     m_eventsToSkip{0},
     m_eventFile{nullptr},
     m_eventTree{nullptr},
@@ -42,7 +50,8 @@ HierarchyAnalysisAlgorithm::HierarchyAnalysisAlgorithm() :
     m_minRecoHits{15},
     m_minRecoHitsPerView{5},
     m_minRecoGoodViews{2},
-    m_removeRecoNeutrons{true}
+    m_removeRecoNeutrons{true},
+    m_selectRecoHits{true}
 {
 }
 
@@ -95,13 +104,15 @@ StatusCode HierarchyAnalysisAlgorithm::Run()
     LArHierarchyHelper::RecoHierarchy recoHierarchy;
     LArHierarchyHelper::FillRecoHierarchy(*pPfoList, foldParameters, recoHierarchy);
 
+    // Enable selection of reco hits once this feature is available in a released version of LArContent
+    //const LArHierarchyHelper::QualityCuts quality(m_minPurity, m_minCompleteness, m_selectRecoHits);
     const LArHierarchyHelper::QualityCuts quality(m_minPurity, m_minCompleteness);
     LArHierarchyHelper::MatchInfo matchInfo(mcHierarchy, recoHierarchy, quality);
     LArHierarchyHelper::MatchHierarchies(matchInfo);
     matchInfo.Print(mcHierarchy);
 
-    // Set the event number
-    this->SetEventNumber();
+    // Set the event run number and trigger timing info
+    this->SetEventRunInfo();
 
     // Analysis PFO & matched reco-MC output
     this->EventAnalysisOutput(matchInfo);
@@ -111,9 +122,9 @@ StatusCode HierarchyAnalysisAlgorithm::Run()
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void HierarchyAnalysisAlgorithm::SetEventNumber()
+void HierarchyAnalysisAlgorithm::SetEventRunInfo()
 {
-    // Set the event number
+    // Set the event and run numbers as well as the trigger timing
     if (m_eventTree)
     {
         // This will set m_event
@@ -317,6 +328,10 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
 
     // Fill ROOT ntuple
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "event", m_event));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "run", m_run));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "subRun", m_subRun));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "startTime", m_startTime));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "endTime", m_endTime));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "sliceId", &sliceIdVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "nuVtxX", &nuVtxXVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "nuVtxY", &nuVtxYVect));
@@ -456,6 +471,11 @@ StatusCode HierarchyAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EventFileName", m_eventFileName));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EventTreeName", m_eventTreeName));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EventLeafName", m_eventLeafName));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "RunLeafName", m_runLeafName));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "SubRunLeafName", m_subRunLeafName));
+    PANDORA_RETURN_RESULT_IF_AND_IF(
+        STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "StartTimeLeafName", m_startTimeLeafName));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EndTimeLeafName", m_endTimeLeafName));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EventsToSkip", m_eventsToSkip));
 
     // Setup the event ROOT file
@@ -467,10 +487,18 @@ StatusCode HierarchyAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
             m_eventTree = dynamic_cast<TTree *>(m_eventFile->Get(m_eventTreeName.c_str()));
             if (m_eventTree)
             {
-                // Only enable the event number leaf
+                // Only enable the event and run number leaves as well as the trigger timing
                 m_eventTree->SetBranchStatus("*", 0);
                 m_eventTree->SetBranchStatus(m_eventLeafName.c_str(), 1);
+                m_eventTree->SetBranchStatus(m_runLeafName.c_str(), 1);
+                m_eventTree->SetBranchStatus(m_subRunLeafName.c_str(), 1);
+                m_eventTree->SetBranchStatus(m_startTimeLeafName.c_str(), 1);
+                m_eventTree->SetBranchStatus(m_endTimeLeafName.c_str(), 1);
                 m_eventTree->SetBranchAddress(m_eventLeafName.c_str(), &m_event);
+                m_eventTree->SetBranchAddress(m_runLeafName.c_str(), &m_run);
+                m_eventTree->SetBranchAddress(m_subRunLeafName.c_str(), &m_subRun);
+                m_eventTree->SetBranchAddress(m_startTimeLeafName.c_str(), &m_startTime);
+                m_eventTree->SetBranchAddress(m_endTimeLeafName.c_str(), &m_endTime);
             }
         }
     }
@@ -497,6 +525,7 @@ StatusCode HierarchyAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
         STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "MinRecoGoodViews", m_minRecoGoodViews));
     PANDORA_RETURN_RESULT_IF_AND_IF(
         STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "RemoveRecoNeutrons", m_removeRecoNeutrons));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "SelectRecoHits", m_selectRecoHits));
 
     return STATUS_CODE_SUCCESS;
 }
