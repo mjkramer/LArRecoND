@@ -39,7 +39,7 @@ def main(argv=None):
         if (int(sys.argv[2])==1):
             useData=True
     uname=os.getenv("USER")
-    output="/exp/dune/data/"+uname+"/flowToROOT"
+    output="/exp/dune/data/users/"+uname+"/flowToROOT"
     if (len(sys.argv)>3):
         if (str(sys.argv[3])!=None):
             output=str(sys.argv[3])
