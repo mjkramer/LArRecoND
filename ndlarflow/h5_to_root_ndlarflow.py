@@ -1,6 +1,7 @@
 # Adapted for 2x2 conversion for Pandora by Richard Diurba
 # Code based on Bern Module data root file conversion by Salvatore Davide Porzio and Saba Parsa
-# python h5_to_root_ndlarflow.py filename data
+# python h5_to_root_ndlarflow.py filename  data outputdir
+# Example to run on data: python h5_to_rooot.py data.h5 /my/dir/ 1
 # filename is an argument of the filename (does not need quotations)
 # data is to toggle the MC information for simulation (0) and data (1), default is simulation
 # Requires standard ROOT, h5py, and numpy 
@@ -18,6 +19,7 @@ import os
 import ROOT
 from ROOT import  TFile
 import sys
+MeV2GeV=0.001
 trueXOffset=0 # Offsets if geometry changes
 trueYOffset=0#42+268
 trueZOffset=0#-1300
@@ -26,7 +28,7 @@ def main(argv=None):
     # set input files to be loaded
     datapath=""
     files = [
-"/pnfs/dune/persistent/users/noeroy/prod/MiniRun6_1E19_RHC/MiniRun6_1E19_RHC.flow/FLOW/0000000/MiniRun6_1E19_RHC.flow.0000055.FLOW.hdf5"]
+"/pnfs/dune/persistent/users/noeroy/prod/MiniRun5_1E19_RHC/MiniRun5_1E19_RHC.flow.beta2a/FLOW/0000000/MiniRun5_1E19_RHC.flow.0000055.FLOW.hdf5"]
 
 
     if (len(sys.argv)>1):
@@ -36,7 +38,8 @@ def main(argv=None):
     if (len(sys.argv)>2):
         if (int(sys.argv[2])==1):
             useData=True
-    output="/exp/dune/data/users/rdiurba/flowToROOT"
+    uname=os.getenv("USER")
+    output="/exp/dune/data/"+uname+"/rdiurba/flowToROOT"
     if (len(sys.argv)>3):
         if (str(sys.argv[3])!=None):
             output=str(sys.argv[3])
@@ -56,7 +59,7 @@ def main(argv=None):
         outFileName = output+"/"+outfile+"_hits.root"
 
 
-        #print('output file : ', '' + outFileName )
+        print('output file : ', '' + outFileName )
 
         output_file = ROOT.TFile((outFileName),"RECREATE")
         output_tree = ROOT.TTree("events", "events")
@@ -261,10 +264,18 @@ def main(argv=None):
             event = f["charge/events/data"][ev_index]
             event_calib_prompt_hits=flow_out["charge/events/","charge/calib_prompt_hits", events["id"][ev_index]]
             event_calib_final_hits=flow_out["charge/events/","charge/calib_final_hits", events["id"][ev_index]]
-            
+            # fill event info
+            eventID[0]= event['id']
+            event_start_t[0] =int(event["ts_start"])
+            event_end_t[0]=int(event["ts_end"])
+            event_unix_ts[0]=int(event["unix_ts"])
+            # grab event hit list and variables
+            hits_id=np.ma.getdata(event_calib_prompt_hits["id"][0])
+            if (len(hits_id)<2): continue
             if (useData==False): 
+                 
                 # find spillID to use for truth info
-                spillArray=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/segments",event_calib_prompt_hits[0]["id"]]["event_id"][0][0][0]
+                spillArray=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/segments",hits_id[0]]["event_id"][0][0][0]
                 # find all truth info and fill it using a complicated vector 
                 allTrajectories,allVertices=find_all_truth_in_spill(spillArray, flow_out)
                 [nuID.push_back(int(i)) for i in allVertices[0]]
@@ -298,6 +309,7 @@ def main(argv=None):
             event_end_t[0]=int(event["ts_end"])
             event_unix_ts[0]=int(event["unix_ts"])
             # grab event hit list and variables
+            """
             hits_z=np.ma.getdata(event_calib_final_hits["z"][0])
             hits_y=np.ma.getdata(event_calib_final_hits["y"][0])
             hits_x=np.ma.getdata(event_calib_final_hits["x"][0])
@@ -346,6 +358,7 @@ def main(argv=None):
                 hit_segmentID.push_back(trackID)
 
                 hitID=hitID+1
+            """
             # grab event hit list and variables for prompt hits
             hits_z=np.ma.getdata(event_calib_prompt_hits["z"][0])
             hits_y=np.ma.getdata(event_calib_prompt_hits["y"][0])
@@ -395,7 +408,7 @@ def main(argv=None):
                 hit_segmentID_uncalib.push_back(trackID)
 
                 hitID=hitID+1
-               
+             
             output_tree.Fill()
 
         #end event loop
@@ -432,6 +445,9 @@ def find_tracks_in_calib_hits(hit_num, flow_out, typ="final"):
     # Get fraction information and track information from hit
     i=0 
     while i<len(fracFromHits):
+        if (segIDsFromHits[i]>len(flow_out["mc_truth/segments/data"])):
+            i=1+i
+            continue
         fracs=fracFromHits[i]
         ids=segIDsFromHits[i]
         if (fracs==0 and ids==0):
@@ -544,10 +560,10 @@ def find_all_truth_in_spill(spillID, flow_out):
         trajID.append(flow_out["mc_truth/trajectories/data"][traj_indices]["traj_id"])
         trajPDG.append(flow_out["mc_truth/trajectories/data"][traj_indices]["pdg_id"])
         pdg=flow_out["mc_truth/trajectories/data"][traj_indices]["pdg_id"]
-        px=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][0]*0.001
-        py=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][1]*0.001
-        pz=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][2]*0.001
-        trajE.append(flow_out["mc_truth/trajectories/data"][traj_indices]["E_start"]*0.001)
+        px=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][0]*MeV2GeV
+        py=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][1]*MeV2GeV
+        pz=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][2]*MeV2GeV
+        trajE.append(flow_out["mc_truth/trajectories/data"][traj_indices]["E_start"]*MeV2GeV)
 
         trajPx.append(px)
         trajPy.append(py)
@@ -582,11 +598,11 @@ def find_all_truth_in_spill(spillID, flow_out):
         nuVertexX.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][0])
         nuVertexY.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][1])
         nuVertexZ.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][2])
-        nuVertexE.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["Enu"]*0.001)
+        nuVertexE.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["Enu"]*MeV2GeV)
         nuPDG.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_pdg"])
-        nuPx.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][0]*0.001)
-        nuPy.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][1]*0.01)
-        nuPz.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][2]*0.01)
+        nuPx.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][0]*MeV2GeV)
+        nuPy.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][1]*MeV2GeV)
+        nuPz.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][2]*MeV2GeV)
         code,cc=get_nuance_code(vertex_indices,flow_out)
         nuCode.append(code)
         nuCC.append(cc)
