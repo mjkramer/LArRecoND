@@ -26,6 +26,7 @@ HierarchyAnalysisAlgorithm::HierarchyAnalysisAlgorithm() :
     m_event{-1},
     m_run{0},
     m_subRun{0},
+    m_unixTime{0},
     m_startTime{0},
     m_endTime{0},
     m_eventFileName{""},
@@ -33,6 +34,7 @@ HierarchyAnalysisAlgorithm::HierarchyAnalysisAlgorithm() :
     m_eventLeafName{"event"},
     m_runLeafName{"run"},
     m_subRunLeafName{"subrun"},
+    m_unixTimeLeafName{"unix_ts"},
     m_startTimeLeafName{"event_start_t"},
     m_endTimeLeafName{"event_end_t"},
     m_eventsToSkip{0},
@@ -343,6 +345,7 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "event", m_event));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "run", m_run));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "subRun", m_subRun));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "unixTime", m_unixTime));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "startTime", m_startTime));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "endTime", m_endTime));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "sliceId", &sliceIdVect));
@@ -487,6 +490,7 @@ StatusCode HierarchyAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EventLeafName", m_eventLeafName));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "RunLeafName", m_runLeafName));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "SubRunLeafName", m_subRunLeafName));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "UnixTimeLeafName", m_unixTimeLeafName));
     PANDORA_RETURN_RESULT_IF_AND_IF(
         STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "StartTimeLeafName", m_startTimeLeafName));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EndTimeLeafName", m_endTimeLeafName));
@@ -506,11 +510,13 @@ StatusCode HierarchyAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
                 m_eventTree->SetBranchStatus(m_eventLeafName.c_str(), 1);
                 m_eventTree->SetBranchStatus(m_runLeafName.c_str(), 1);
                 m_eventTree->SetBranchStatus(m_subRunLeafName.c_str(), 1);
+                m_eventTree->SetBranchStatus(m_unixTimeLeafName.c_str(), 1);
                 m_eventTree->SetBranchStatus(m_startTimeLeafName.c_str(), 1);
                 m_eventTree->SetBranchStatus(m_endTimeLeafName.c_str(), 1);
                 m_eventTree->SetBranchAddress(m_eventLeafName.c_str(), &m_event);
                 m_eventTree->SetBranchAddress(m_runLeafName.c_str(), &m_run);
                 m_eventTree->SetBranchAddress(m_subRunLeafName.c_str(), &m_subRun);
+                m_eventTree->SetBranchAddress(m_unixTimeLeafName.c_str(), &m_unixTime);
                 m_eventTree->SetBranchAddress(m_startTimeLeafName.c_str(), &m_startTime);
                 m_eventTree->SetBranchAddress(m_endTimeLeafName.c_str(), &m_endTime);
             }
