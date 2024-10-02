@@ -88,19 +88,6 @@ def main(argv=None):
         hit_segmentIndex=ROOT.std.vector("std::vector<int>")();
         hit_particleIndex=ROOT.std.vector("std::vector<int>")();
         hit_interactionIndex=ROOT.std.vector("std::vector<int>")();
-        x_uncalib=ROOT.std.vector('float')();
-        y_uncalib=ROOT.std.vector('float')();
-        z_uncalib=ROOT.std.vector('float')();
-        ts_uncalib=ROOT.std.vector('float')();
-        E_uncalib=ROOT.std.vector("float")();
-        charge_uncalib=ROOT.std.vector('float')();
-        hit_pdg_uncalib=ROOT.std.vector("std::vector<int>")();
-        hit_particleID_uncalib=ROOT.std.vector("std::vector<int>")();
-        hit_segmentID_uncalib=ROOT.std.vector("std::vector<int>")();
-        hit_packetFrac_uncalib=ROOT.std.vector("std::vector<float>")();
-        hit_segmentIndex_uncalib=ROOT.std.vector("std::vector<int>")();
-        hit_particleIndex_uncalib=ROOT.std.vector("std::vector<int>")();
-        hit_interactionIndex_uncalib=ROOT.std.vector("std::vector<int>")();
         mcp_px=ROOT.std.vector("float")();
         mcp_py=ROOT.std.vector("float")();
         mcp_pz=ROOT.std.vector("float")();
@@ -150,19 +137,6 @@ def main(argv=None):
         output_tree.Branch("hit_pdg",hit_pdg)
         output_tree.Branch("hit_packetFrac",hit_packetFrac)
 
-        output_tree.Branch("x_uncalib",x_uncalib)
-        output_tree.Branch("y_uncalib",y_uncalib)
-        output_tree.Branch("z_uncalib",z_uncalib)
-        output_tree.Branch("ts_uncalib",ts_uncalib)
-        output_tree.Branch("charge_uncalib"      ,charge_uncalib)
-        output_tree.Branch("E_uncalib",E_uncalib)
-        output_tree.Branch("hit_segmentID_uncalib",hit_segmentID_uncalib)
-        output_tree.Branch("hit_segmentIndex_uncalib",hit_segmentIndex_uncalib)
-        output_tree.Branch("hit_particleID_uncalib",hit_particleID_uncalib)
-        output_tree.Branch("hit_particleIndex_uncalib",hit_particleIndex_uncalib)
-        output_tree.Branch("hit_interactionIndex_uncalib",hit_interactionIndex_uncalib);
-        output_tree.Branch("hit_pdg_uncalib",hit_pdg_uncalib)
-        output_tree.Branch("hit_packetFrac_uncalib",hit_packetFrac_uncalib)
 
         output_tree.Branch("mcp_energy",mcp_energy)
         output_tree.Branch("mcp_pdg",mcp_pdg)
@@ -212,19 +186,6 @@ def main(argv=None):
             hit_packetFrac.clear()
             hit_segmentIndex.clear()
 
-            x_uncalib.clear()
-            y_uncalib.clear()
-            z_uncalib.clear()
-            charge_uncalib.clear()
-            E_uncalib.clear()
-            ts_uncalib.clear()
-            hit_segmentID_uncalib.clear()
-            hit_pdg_uncalib.clear()
-            hit_particleID_uncalib.clear()
-            hit_interactionIndex_uncalib.clear()
-            hit_particleIndex_uncalib.clear()
-            hit_packetFrac_uncalib.clear()
-            hit_segmentIndex_uncalib.clear()
 
             mcp_px.clear()
             mcp_py.clear()
@@ -391,19 +352,19 @@ def main(argv=None):
                     #[particleIndex.push_back(int(i)) for i in contr_info[3]]
                     [pdgHit.push_back(int(i)) for i in contr_info[5]]
                 # save hit information
-                z_uncalib.push_back(hits_z[hitID]+trueZOffset)
-                y_uncalib.push_back(hits_y[hitID]+trueYOffset)
-                x_uncalib.push_back(hits_x[hitID]+trueXOffset)
-                charge_uncalib.push_back(hits_Q[hitID])
-                E_uncalib.push_back(hits_E[hitID])
-                ts_uncalib.push_back(hits_ts[hitID])
-                hit_packetFrac_uncalib.push_back(packetFrac)
-                hit_particleID_uncalib.push_back(particleID)
-                hit_particleIndex_uncalib.push_back(particleIndex)
-                hit_pdg_uncalib.push_back(pdgHit)
-                hit_interactionIndex_uncalib.push_back(interactionIndex)
-                hit_segmentIndex_uncalib.push_back(trackIndex)
-                hit_segmentID_uncalib.push_back(trackID)
+                z.push_back(hits_z[hitID]+trueZOffset)
+                y.push_back(hits_y[hitID]+trueYOffset)
+                x.push_back(hits_x[hitID]+trueXOffset)
+                charge.push_back(hits_Q[hitID])
+                E.push_back(hits_E[hitID])
+                ts.push_back(hits_ts[hitID])
+                hit_packetFrac.push_back(packetFrac)
+                hit_particleID.push_back(particleID)
+                hit_particleIndex.push_back(particleIndex)
+                hit_pdg.push_back(pdgHit)
+                hit_interactionIndex.push_back(interactionIndex)
+                hit_segmentIndex.push_back(trackIndex)
+                hit_segmentID.push_back(trackID)
 
                 hitID=hitID+1
                

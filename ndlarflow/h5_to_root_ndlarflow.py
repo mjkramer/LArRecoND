@@ -393,19 +393,20 @@ def main(argv=None):
                     #[particleIndex.push_back(int(i)) for i in contr_info[3]]
                     [pdgHit.push_back(int(i)) for i in contr_info[5]]
                 # save hit information
-                z_uncalib.push_back(hits_z[hitID]+trueZOffset)
-                y_uncalib.push_back(hits_y[hitID]+trueYOffset)
-                x_uncalib.push_back(hits_x[hitID]+trueXOffset)
-                charge_uncalib.push_back(hits_Q[hitID])
-                E_uncalib.push_back(hits_E[hitID])
-                ts_uncalib.push_back(hits_ts[hitID])
-                hit_packetFrac_uncalib.push_back(packetFrac)
-                hit_particleID_uncalib.push_back(particleID)
-                hit_particleIndex_uncalib.push_back(particleIndex)
-                hit_pdg_uncalib.push_back(pdgHit)
-                hit_interactionIndex_uncalib.push_back(interactionIndex)
-                hit_segmentIndex_uncalib.push_back(trackIndex)
-                hit_segmentID_uncalib.push_back(trackID)
+                z.push_back(hits_z[hitID]+trueZOffset)
+                y.push_back(hits_y[hitID]+trueYOffset)
+                x.push_back(hits_x[hitID]+trueXOffset)
+                charge.push_back(hits_Q[hitID])
+                E.push_back(hits_E[hitID])
+                ts.push_back(hits_ts[hitID])
+                hit_packetFrac.push_back(packetFrac)
+                hit_particleID.push_back(particleID)
+                hit_particleIndex.push_back(particleIndex)
+                hit_pdg.push_back(pdgHit)
+                hit_interactionIndex.push_back(interactionIndex)
+                hit_segmentIndex.push_back(trackIndex)
+                hit_segmentID.push_back(trackID)
+
 
                 hitID=hitID+1
              
