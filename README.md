@@ -319,7 +319,7 @@ contains the event numbers (which defaults to `events`) and `EventLeafName` defi
 (which defaults to `event`). This workaround is needed since it is currently not possible to pass event (and run) information
 between Pandora algorithms. By default, no events are skipped, but if the `-s` run option is used, then `EventsToSkip` must be equal
 to this integer to ensure that the correct event numbers are found. The additional parameters `RunLeafName` and `SubRunLeafName`
-define the run and sub-run numbers, 'UnixTimeLeafName' defines the trigger unix time variable (in seconds), while `StartTimeLeafName`
+define the run and sub-run numbers, `UnixTimeLeafName` defines the trigger unix time variable (in seconds), while `StartTimeLeafName`
 and `EndTimeLeafName` define the decimal start and end timing variables in ticks (0.1 microseconds).
 If these are not provided, then they will all be set to zero.
 
