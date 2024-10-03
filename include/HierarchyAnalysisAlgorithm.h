@@ -102,7 +102,7 @@ private:
     int m_event;                       ///< The actual event number
     int m_run;                         ///< The run number
     int m_subRun;                      ///< The subrun number
-    int m_unixTime;                    ///< The unix time (seconds)
+    int m_unixTime;                    ///< The unix trigger time (seconds)
     int m_startTime;                   ///< The event trigger start time (ticks = 0.1 usec)
     int m_endTime;                     ///< The event trigger end time (ticks = 0.1 usec)
     std::string m_eventFileName;       ///< Name of the ROOT TFile containing the event numbers
