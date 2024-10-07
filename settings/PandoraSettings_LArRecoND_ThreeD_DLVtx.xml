@@ -48,7 +48,7 @@
     </algorithm>
 
     <algorithm type = "LArHierarchyAnalysis">
-        <EventFileName>EventFile.root</EventFileName>
+        <EventFileName>LArRecoNDInput.root</EventFileName>
 	<EventTreeName>events</EventTreeName>
 	<EventLeafName>event</EventLeafName>
 	<RunLeafName>run</RunLeafName>
