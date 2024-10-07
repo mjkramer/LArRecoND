@@ -458,9 +458,10 @@ def find_tracks_in_calib_hits(hit_num, flow_out, typ="final"):
     pdg_id=[]
     total = 0.
     # Get fraction information and track information from hit
-    i=0 
+    i=0
+    segments = flow_out["mc_truth/segments/data"]
     while i<len(fracFromHits):
-        if (segIDsFromHits[i]>len(flow_out["mc_truth/segments/data"])):
+        if (segIDsFromHits[i]>=len(segments)):
             i=1+i
             continue
         fracs=fracFromHits[i]
