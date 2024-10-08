@@ -477,7 +477,7 @@ def find_tracks_in_calib_hits(hit_num, flow_out, typ="final"):
         track_contr.append(contrib)
 
         # get track info
-        seg=flow_out["mc_truth/segments/data"][ids]
+        seg=segments[ids]
         segID = seg["segment_id"]
         pdg = seg["pdg_id"]
         particleID = seg["traj_id"]
@@ -567,25 +567,27 @@ def find_all_truth_in_spill(spillID, flow_out):
     traj_indicesArray = np.where(flow_out['mc_truth/trajectories/data']["event_id"] == spillID)[0] 
     # get all the mcparticle information
     for traj_indices in traj_indicesArray:
-        trajStartX.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_start"][0])
-        trajStartY.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_start"][1])
-        trajStartZ.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_start"][2])
-        trajEndX.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_end"][0])
-        trajEndY.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_end"][1])
-        trajEndZ.append(flow_out["mc_truth/trajectories/data"][traj_indices]["xyz_end"][2])
-        trajID.append(flow_out["mc_truth/trajectories/data"][traj_indices]["traj_id"])
-        trajPDG.append(flow_out["mc_truth/trajectories/data"][traj_indices]["pdg_id"])
-        pdg=flow_out["mc_truth/trajectories/data"][traj_indices]["pdg_id"]
-        px=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][0]*MeV2GeV
-        py=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][1]*MeV2GeV
-        pz=flow_out["mc_truth/trajectories/data"][traj_indices]["pxyz_start"][2]*MeV2GeV
-        trajE.append(flow_out["mc_truth/trajectories/data"][traj_indices]["E_start"]*MeV2GeV)
+        traj = flow_out["mc_truth/trajectories/data"][traj_indices]
+        trajStartX.append(traj["xyz_start"][0])
+        trajStartY.append(traj["xyz_start"][1])
+        trajStartZ.append(traj["xyz_start"][2])
+        trajEndX  .append(traj["xyz_end"][0])
+        trajEndY  .append(traj["xyz_end"][1])
+        trajEndZ  .append(traj["xyz_end"][2])
+        trajID    .append(traj["traj_id"])
+        trajPDG   .append(traj["pdg_id"])
+        trajE     .append(traj["E_start"]*MeV2GeV)
+        pdg = traj["pdg_id"]
+        px  = traj["pxyz_start"][0]*MeV2GeV
+        py  = traj["pxyz_start"][1]*MeV2GeV
+        pz  = traj["pxyz_start"][2]*MeV2GeV
 
         trajPx.append(px)
         trajPy.append(py)
         trajPz.append(pz)
-        trajVertexID.append(flow_out["mc_truth/trajectories/data"][traj_indices]["vertex_id"])
-        trajParentID.append(flow_out["mc_truth/trajectories/data"][traj_indices]["parent_id"])
+        trajVertexID.append(traj["vertex_id"])
+        trajParentID.append(traj["parent_id"])
+        
     nuVertexIndex=[]
     for i in trajVertexID:
         if i<1000000:
@@ -610,15 +612,16 @@ def find_all_truth_in_spill(spillID, flow_out):
     nuCC=[]
     nuVertexArray=[]
     for vertex_indices in vertex_indicesArray:
-        nuVertexArray.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex_id"])
-        nuVertexX.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][0])
-        nuVertexY.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][1])
-        nuVertexZ.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["vertex"][2])
-        nuVertexE.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["Enu"]*MeV2GeV)
-        nuPDG.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_pdg"])
-        nuPx.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][0]*MeV2GeV)
-        nuPy.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][1]*MeV2GeV)
-        nuPz.append(flow_out["/mc_truth/interactions/data"][vertex_indices]["nu_4mom"][2]*MeV2GeV)
+        vtx = flow_out["/mc_truth/interactions/data"][vertex_indices]
+        nuVertexArray.append(vtx["vertex_id"])
+        nuVertexX    .append(vtx["vertex"][0])
+        nuVertexY    .append(vtx["vertex"][1])
+        nuVertexZ    .append(vtx["vertex"][2])
+        nuVertexE    .append(vtx["Enu"]*MeV2GeV)
+        nuPDG        .append(vtx["nu_pdg"])
+        nuPx         .append(vtx["nu_4mom"][0]*MeV2GeV)
+        nuPy         .append(vtx["nu_4mom"][1]*MeV2GeV)
+        nuPz         .append(vtx["nu_4mom"][2]*MeV2GeV)
         code,cc=get_nuance_code(vertex_indices,flow_out)
         nuCode.append(code)
         nuCC.append(cc)
@@ -636,12 +639,13 @@ def find_all_truth_in_spill(spillID, flow_out):
     return trajectories, vertices
 def get_nuance_code(vertex_num,flow_out):
     # convert the neutrino information to nuance code from PandoraInterface code
-    qe=flow_out["mc_truth/interactions/data"][vertex_num]["isQES"]
-    nccc=flow_out["mc_truth/interactions/data"][vertex_num]["isCC"]
-    mec=flow_out["mc_truth/interactions/data"][vertex_num]["isMEC"]
-    res=flow_out["mc_truth/interactions/data"][vertex_num]["isRES"]
-    dis=flow_out["mc_truth/interactions/data"][vertex_num]["isDIS"]
-    coh=flow_out["mc_truth/interactions/data"][vertex_num]["isCOH"]
+    vtx  = flow_out["mc_truth/interactions/data"][vertex_num]
+    qe   = vtx["isQES"]
+    nccc = vtx["isCC"]
+    mec  = vtx["isMEC"]
+    res  = vtx["isRES"]
+    dis  = vtx["isDIS"]
+    coh  = vtx["isCOH"]
     code=1000;
     cc=1
     if nccc==1:
