@@ -98,6 +98,15 @@ private:
     const RecoMCMatch GetRecoMCMatch(const LArHierarchyHelper::RecoHierarchy::Node *pRecoNode,
         const LArHierarchyHelper::MatchInfo &matchInfo, pandora::MCParticleList &rootMCParticles) const;
 
+    /**
+     *  @brief  Get the associated vertex_id for the given mcNuId value
+     *
+     *  @param  mcNuId The truncated parent neutrino id integer for the MC particle
+     *
+     *  @return The corresponding long vertex_id integer (using the event input file)
+     */
+    long GetVertexId(const int mcNuId) const;
+
     int m_count;                       ///< The number of times the Run() function has been called
     int m_event;                       ///< The actual event number
     int m_run;                         ///< The run number
@@ -105,6 +114,7 @@ private:
     int m_unixTime;                    ///< The unix trigger time (seconds)
     int m_startTime;                   ///< The event trigger start time (ticks = 0.1 usec)
     int m_endTime;                     ///< The event trigger end time (ticks = 0.1 usec)
+    std::vector<long> *m_vertexIds;    ///< The vector of vertex_id's for the event
     std::string m_eventFileName;       ///< Name of the ROOT TFile containing the event numbers
     std::string m_eventTreeName;       ///< Name of the ROOT TTree containing the event numbers
     std::string m_eventLeafName;       ///< Name of the event number leaf/variable
@@ -113,6 +123,7 @@ private:
     std::string m_unixTimeLeafName;    ///< Name of the unix time leaf/variable
     std::string m_startTimeLeafName;   ///< Name of the event start time leaf/variable
     std::string m_endTimeLeafName;     ///< Name of the event end time leaf/variable
+    std::string m_vertexIdLeafName;    ///< Name of the vertex_id leaf/variable
     int m_eventsToSkip;                ///< The number of events to skip (from the start of the event file)
     TFile *m_eventFile;                ///< The ROOT event file pointer
     TTree *m_eventTree;                ///< The ROOT event tree pointer
