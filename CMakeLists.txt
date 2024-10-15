@@ -43,7 +43,7 @@ foreach(package PandoraSDK ${LAR_CONTENT_LIBRARY_NAME} ${LAR_DL_CONTENT_LIBRARY_
 endforeach()
 
 if(PANDORA_MONITORING)
-    find_package(PandoraMonitoring 03.05.00 REQUIRED)
+    find_package(PandoraMonitoring 03.06.00 REQUIRED)
     include_directories(${PandoraMonitoring_INCLUDE_DIRS})
     link_libraries(${PandoraMonitoring_LIBRARIES})
     add_definitions(${PandoraMonitoring_DEFINITIONS})
