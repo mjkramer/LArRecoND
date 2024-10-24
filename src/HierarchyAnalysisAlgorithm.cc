@@ -153,17 +153,17 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
     FloatVector dirXVect, dirYVect, dirZVect, centroidXVect, centroidYVect, centroidZVect;
     FloatVector primaryLVect, secondaryLVect, tertiaryLVect, energyVect;
     // Best matched MC info
-    IntVector matchVect, mcPDGVect, mcIdVect, nSharedHitsVect, isPrimaryVect;
+    IntVector matchVect, mcPDGVect, nSharedHitsVect, isPrimaryVect;
     FloatVector completenessVect, purityVect;
     // MC matched energy, momentum, vertex and end position
     FloatVector mcEVect, mcPxVect, mcPyVect, mcPzVect;
     FloatVector mcVtxXVect, mcVtxYVect, mcVtxZVect, mcEndXVect, mcEndYVect, mcEndZVect;
     // MC neutrino parent info
-    IntVector mcNuPDGVect, mcNuIdVect, mcNuCodeVect;
+    IntVector mcNuPDGVect, mcNuCodeVect;
     FloatVector mcNuVtxXVect, mcNuVtxYVect, mcNuVtxZVect;
     FloatVector mcNuEVect, mcNuPxVect, mcNuPyVect, mcNuPzVect;
-    // For the MC vertex_ids
-    std::vector<long> mcVertexIdVect;
+    // Long integers for the MC vertex_id and unique file_traj_id values
+    std::vector<long> mcNuIdVect, mcIdVect;
 
     // Get the list of root MCParticles for the MC truth matching
     MCParticleList rootMCParticles;
@@ -295,7 +295,7 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
                 const MCParticle *pLeadingMC = bestMatch.m_pLeadingMC;
                 const int gotMatch = (pLeadingMC != nullptr) ? 1 : 0;
                 const int mcPDG = (pLeadingMC != nullptr) ? pLeadingMC->GetParticleId() : 0;
-                const int mcId = (pLeadingMC != nullptr) ? reinterpret_cast<intptr_t>(pLeadingMC->GetUid()) : 0;
+                const long mcId = (pLeadingMC != nullptr) ? reinterpret_cast<intptr_t>(pLeadingMC->GetUid()) : 0;
                 const int isPrimary = (pLeadingMC != nullptr && LArMCParticleHelper::IsPrimary(pLeadingMC)) ? 1 : 0;
                 const float mcEnergy = (pLeadingMC != nullptr) ? pLeadingMC->GetEnergy() : 0.f;
                 const CartesianVector mcMomentum = (pLeadingMC != nullptr) ? pLeadingMC->GetMomentum() : CartesianVector(0.f, 0.f, 0.f);
@@ -305,14 +305,11 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
                 // MC neutrino parent info, including Nuance interaction code
                 const MCParticle *pNuRoot = bestMatch.m_pNuRoot;
                 const int mcNuPDG = (pNuRoot != nullptr) ? pNuRoot->GetParticleId() : 0;
-                const int mcNuId = (pNuRoot != nullptr) ? reinterpret_cast<intptr_t>(pNuRoot->GetUid()) : 0;
+                const long mcNuId = (pNuRoot != nullptr) ? reinterpret_cast<intptr_t>(pNuRoot->GetUid()) : 0;
                 const int mcNuCode = (dynamic_cast<const LArMCParticle *>(pNuRoot) != nullptr) ? LArMCParticleHelper::GetNuanceCode(pNuRoot) : 0;
                 const CartesianVector mcNuVertex = (pNuRoot != nullptr) ? pNuRoot->GetVertex() : CartesianVector(max, max, max);
                 const float mcNuEnergy = (pNuRoot != nullptr) ? pNuRoot->GetEnergy() : 0.f;
                 const CartesianVector mcNuMomentum = (pNuRoot != nullptr) ? pNuRoot->GetMomentum() : CartesianVector(0.f, 0.f, 0.f);
-
-                // Use the input event file to get the corresponding vertex_id for the given mcNuId
-                const long vertexId = this->GetVertexId(mcNuId);
 
                 matchVect.emplace_back(gotMatch);
                 mcPDGVect.emplace_back(mcPDG);
@@ -333,7 +330,6 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
                 mcEndZVect.emplace_back(mcEndPoint.GetZ());
                 mcNuPDGVect.emplace_back(mcNuPDG);
                 mcNuIdVect.emplace_back(mcNuId);
-                mcVertexIdVect.emplace_back(vertexId);
                 mcNuCodeVect.emplace_back(mcNuCode);
                 mcNuVtxXVect.emplace_back(mcNuVertex.GetX());
                 mcNuVtxYVect.emplace_back(mcNuVertex.GetY());
@@ -398,7 +394,6 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcEndZ", &mcEndZVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcNuPDG", &mcNuPDGVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcNuId", &mcNuIdVect));
-    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcVertexId", &mcVertexIdVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcNuCode", &mcNuCodeVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcNuVtxX", &mcNuVtxXVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcNuVtxY", &mcNuVtxYVect));
