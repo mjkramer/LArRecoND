@@ -413,6 +413,7 @@ def main(argv=None):
                     [particleID.push_back(int(i)) for i in  contr_info["particleID"]]
                     [particleIDLocal.push_back(int(i)) for i in contr_info["particleIDLocal"]]
                     [interactionIndex.push_back(int(i)) for i in contr_info["vertexID"]]
+                    [pdgHit.push_back(int(i)) for i in contr_info["pdg"]]
                 # save hit information
                 z.push_back(hits_z[hitID]+trueZOffset)
                 y.push_back(hits_y[hitID]+trueYOffset)
@@ -477,10 +478,8 @@ def find_tracks_in_calib_hits(hit_num, flow_out, typ="prompt"):
     particleIndex_tot=[]
     particle_tot=[]
     particle_totLocal=[]
-
     vertex_tot=[]
     vertexID_tot=[]
-    pdg_id=[]
     total = 0.
     # Get fraction information and track information from hit
     i=0
@@ -509,15 +508,16 @@ def find_tracks_in_calib_hits(hit_num, flow_out, typ="prompt"):
         particleID = seg["file_traj_id"][0]
         vertexID=seg["vertex_id"][0]
         particleIDLocal=seg["traj_id"][0]
-        pdg_id.append(pdg)
+        pdg_tot.append(pdg)
         particleIndex_tot.append(traj_index)
         trackIndex_tot.append(-999)
         particle_tot.append(particleID)
         vertexID_tot.append(vertexID)
         vertex_tot.append(interaction_index)
+        
         i=i+1
     if segIDsFromHits[0]==-1:
-        pdg_id.append(-999)
+        pdg_tot.append(-999)
         particleIndex_tot.append(-999)
         trackIndex_tot.append(-999)
         particle_tot.append(-999)
@@ -530,6 +530,7 @@ def find_tracks_in_calib_hits(hit_num, flow_out, typ="prompt"):
     backtrack["vertexID"]=vertexID
     backtrack["segID"]=segID
     backtrack["fraction"]=track_contr
+    backtrack["pdg"]=pdg_tot
      
     return backtrack
 
@@ -540,6 +541,7 @@ def find_tracks_in_packet(hit_num, flow_out):
     particleIDArray=[]
     segIDArray=[]
     vertexIDArray=[]
+    pdgArray=[]
     total = 0.
     backtrack={}
     # Get fraction information and track information from hit
@@ -559,11 +561,13 @@ def find_tracks_in_packet(hit_num, flow_out):
         particleID = trajs["file_traj_id"]
         particleIDLocal= trajs["traj_id"]
         vertexID=trajs["vertex_id"]
+        pdgArray.append(pdg)
         segIDArray.append(seg)
         particleIDArray.append(particleID)
         particleIDLocalArray.append(particleIDLocal)
         vertexIDArray.append(vertexID)
     if len(fracFromHits)<1:
+        pdgArray.append(-999)
         particleIDArray.append(-999)
         segIDArray.append(-999)
         particleIDLocalArray.append(-999)
@@ -576,6 +580,7 @@ def find_tracks_in_packet(hit_num, flow_out):
     backtrack["vertexID"]=vertexIDArray
     backtrack["segID"]=segIDArray
     backtrack["fraction"]=track_contr
+    backtrack["pdg"]=pdgArray
      
     return backtrack
 
