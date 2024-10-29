@@ -395,7 +395,7 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
             caloHitParameters.m_daughterVolumeId = 0;
 
             // Only used for truth
-            int trackID{0};
+            long trackID{0};
             float energyFrac{0.f};
             // Set calo hit to MCParticle relation using trackID
             if (parameters.m_dataFormat == Parameters::LArNDFormat::SPMC)
@@ -403,8 +403,7 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
                 LArSPMC *larspmc = dynamic_cast<LArSPMC *>(larsp.get());
                 const std::vector<float> mcContribs = (*larspmc->m_hit_packetFrac)[isp];
                 const int biggestContribIndex = std::distance(mcContribs.begin(), std::max_element(mcContribs.begin(), mcContribs.end()));
-                trackID = (*larspmc->m_hit_particleFileID)[isp][biggestContribIndex];
-                std::cout << "Hit trackID = " << trackID << std::endl;
+                trackID = (*larspmc->m_hit_particleID)[isp][biggestContribIndex];
                 // Due to the merging of hits, the contributions can sometimes add up to more than 1.
                 // Normalise first
                 const float sum = std::accumulate(mcContribs.begin(), mcContribs.end(), 0.f);
@@ -413,7 +412,7 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
                 if (energyFrac > 1.f + std::numeric_limits<float>::epsilon())
                     energyFrac = 1.f;
 
-                if (std::find(larspmc->m_mcp_file_id->begin(), larspmc->m_mcp_file_id->end(), trackID) == larspmc->m_mcp_file_id->end())
+                if (std::find(larspmc->m_mcp_id->begin(), larspmc->m_mcp_id->end(), trackID) == larspmc->m_mcp_id->end())
                     std::cout << "Problem? Could not find MC particle with file ID " << trackID << std::endl;
             }
 
@@ -494,7 +493,6 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
     {
         // Unique vertex ID for the neutrino
         const long vertexID = (*larspmc.m_vertex_id)[i];
-        std::cout << "Neutrino " << i << " has vertexID = " << vertexID << std::endl;
         // Store the vertex ID for this neutrino entry
         vertexIdToIndex[vertexID] = i;
 
@@ -527,20 +525,19 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
             pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, mcNeutrinoParameters, mcParticleFactory));
     }
 
-    // Create a map for associating the unique file MC IDs with their corresponding (vertex_id, mcp_id) pairs.
-    // This is needed to find the unique file ID for parent MC particles, where we only know their vertex_id & mcp_id's.
-    // The "mcp_mother" ID doesn't have a corresponding unique "mcp_file_mother" stored in the input ROOT file.
+    // Create a map for associating the unique (file-based) MC IDs with their corresponding (vertex_id, mcp_idLocal) pairs.
+    // This is needed to find the unique ID for parent MC particles, where we only know their vertex_id & mcp_idLocal's.
+    // The "mcp_mother" local ID doesn't have a corresponding unique "mcp_file_mother" stored in the input ROOT file.
     // We need to do this before creating the MC particles since the ancestry could be stored in any order
     std::map<std::pair<long, int>, long> mcIDMap;
 
-    for (size_t i = 0; i < larspmc.m_mcp_file_id->size(); ++i)
+    for (size_t i = 0; i < larspmc.m_mcp_id->size(); ++i)
     {
-        // Store the corresponding unique file ID for each <vertex_id, traj_id> key pair
-        const long mcpFileID = (*larspmc.m_mcp_file_id)[i];
+        // Store the corresponding unique (file-based) MC ID for each <vertex_id, mcp_idLocal> key pair
+        const long mcpID = (*larspmc.m_mcp_id)[i];
         const long mcpVertexID = (*larspmc.m_mcp_vertex_id)[i];
-        const int mcpTrajID = (*larspmc.m_mcp_id)[i];
-        mcIDMap[std::make_pair(mcpVertexID, mcpTrajID)] = mcpFileID;
-        std::cout << "Map: mcpVtxID = " << mcpVertexID << ", trajID = " << mcpTrajID << ", fileID = " << mcpFileID << std::endl;
+        const int mcpIDLocal = (*larspmc.m_mcp_idLocal)[i];
+        mcIDMap[std::make_pair(mcpVertexID, mcpIDLocal)] = mcpID;
     }
 
     // Create MC particles
@@ -567,9 +564,9 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
         const std::string reaction = GetNuanceReaction((*larspmc.m_ccnc)[nuIndex], (*larspmc.m_mode)[nuIndex]);
         mcParticleParameters.m_nuanceCode = GetNuanceCode(reaction);
 
-        // Unique file id for this MC particle
-        const long mcpFileID = (*larspmc.m_mcp_file_id)[i];
-        mcParticleParameters.m_pParentAddress = (void *)((intptr_t)mcpFileID);
+        // Unique file-based ID for this MC particle
+        const long mcpID = (*larspmc.m_mcp_id)[i];
+        mcParticleParameters.m_pParentAddress = (void *)((intptr_t)mcpID);
 
         // Start and end points in cm
         const float startx = (*larspmc.m_mcp_startx)[i] * parameters.m_lengthScale;
@@ -585,9 +582,6 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
         // Process ID
         mcParticleParameters.m_process = lar_content::MC_PROC_UNKNOWN;
 
-        std::cout << "Creating MCParticle i = " << i << ", mcpFileID = " << mcpFileID << ", mcpVtxID " << mcpVertexID
-                  << ", nuIdx = " << nuIndex << std::endl;
-
         // Create MCParticle
         try
         {
@@ -600,21 +594,20 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
             continue;
         }
 
-        // Set parent relationship. For the parent, use its <vertex_id, traj_id> pair to get its unique file id
-        const int mcpMotherID = (*larspmc.m_mcp_mother)[i];
+        // Set parent relationship. For the parent, use its <vertex_id, mcp_idLocal> pair to get its unique ID
+        const long mcpMotherID = (*larspmc.m_mcp_mother)[i];
         const std::pair<long, int> parentPair = std::make_pair(mcpVertexID, mcpMotherID);
         const long mcpParentID = mcIDMap.find(parentPair) != mcIDMap.end() ? mcIDMap[parentPair] : mcpMotherID;
-        std::cout << "mcpMotherID = " << mcpMotherID << ", parentID = " << mcpParentID << "\n" << std::endl;
 
         if (mcpParentID == -1) // link to mc neutrino
         {
             PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)mcpVertexID), (void *)((intptr_t)mcpFileID)));
+                PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)mcpVertexID), (void *)((intptr_t)mcpID)));
         }
         else
         {
             PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,
-                PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)mcpParentID), (void *)((intptr_t)mcpFileID)));
+                PandoraApi::SetMCParentDaughterRelationship(*pPrimaryPandora, (void *)((intptr_t)mcpParentID), (void *)((intptr_t)mcpID)));
         }
     }
 }

@@ -44,31 +44,19 @@ public:
     virtual void InitMC(TTree *tree);
 
     // Hit level truth information
-    std::vector<std::vector<int>> *m_hit_segmentID = nullptr;
-    std::vector<std::vector<int>> *m_hit_segmentIndex = nullptr;
-    std::vector<std::vector<int>> *m_hit_particleID = nullptr;
-    std::vector<std::vector<long>> *m_hit_particleFileID = nullptr;
-    std::vector<std::vector<int>> *m_hit_particleIndex = nullptr;
-    std::vector<std::vector<int>> *m_hit_interactionIndex = nullptr;
-    std::vector<std::vector<int>> *m_hit_pdg = nullptr;
+    std::vector<std::vector<long>> *m_hit_particleID = nullptr;
     std::vector<std::vector<float>> *m_hit_packetFrac = nullptr;
-    TBranch *m_b_hit_segmentID = nullptr;
-    TBranch *m_b_hit_segmentIndex = nullptr;
     TBranch *m_b_hit_particleID = nullptr;
-    TBranch *m_b_hit_particleFileID = nullptr;
-    TBranch *m_b_hit_particleIndex = nullptr;
-    TBranch *m_b_hit_interactionIndex = nullptr;
-    TBranch *m_b_hit_pdg = nullptr;
     TBranch *m_b_hit_packetFrac = nullptr;
 
     // MC Particle information
     std::vector<float> *m_mcp_energy = nullptr;
     std::vector<int> *m_mcp_pdg = nullptr;
-    std::vector<int> *m_mcp_nuid = nullptr;
+    std::vector<long> *m_mcp_nuid = nullptr;
     std::vector<long> *m_mcp_vertex_id = nullptr;
-    std::vector<int> *m_mcp_id = nullptr;
-    std::vector<long> *m_mcp_file_id = nullptr;
-    std::vector<int> *m_mcp_mother = nullptr;
+    std::vector<long> *m_mcp_idLocal = nullptr;
+    std::vector<long> *m_mcp_id = nullptr;
+    std::vector<long> *m_mcp_mother = nullptr;
     std::vector<float> *m_mcp_px = nullptr;
     std::vector<float> *m_mcp_py = nullptr;
     std::vector<float> *m_mcp_pz = nullptr;
@@ -82,8 +70,8 @@ public:
     TBranch *m_b_mcp_pdg = nullptr;
     TBranch *m_b_mcp_nuid = nullptr;
     TBranch *m_b_mcp_vertex_id = nullptr;
+    TBranch *m_b_mcp_idLocal = nullptr;
     TBranch *m_b_mcp_id = nullptr;
-    TBranch *m_b_mcp_file_id = nullptr;
     TBranch *m_b_mcp_mother = nullptr;
     TBranch *m_b_mcp_px = nullptr;
     TBranch *m_b_mcp_py = nullptr;
@@ -97,7 +85,7 @@ public:
 
     // Neutrino information
     std::vector<long> *m_vertex_id = nullptr;
-    std::vector<int> *m_nuID = nullptr;
+    std::vector<long> *m_nuID = nullptr;
     std::vector<float> *m_nue = nullptr;
     std::vector<int> *m_nuPDG = nullptr;
     std::vector<float> *m_nupx = nullptr;
@@ -152,20 +140,14 @@ void LArSPMC::InitMC(TTree *tree)
     m_fCurrent = -1;
     m_fChain->SetMakeClass(1);
 
-    m_fChain->SetBranchAddress("hit_segmentID", &m_hit_segmentID, &m_b_hit_segmentID);
-    m_fChain->SetBranchAddress("hit_segmentIndex", &m_hit_segmentIndex, &m_b_hit_segmentIndex);
     m_fChain->SetBranchAddress("hit_particleID", &m_hit_particleID, &m_b_hit_particleID);
-    m_fChain->SetBranchAddress("hit_particleFileID", &m_hit_particleFileID, &m_b_hit_particleFileID);
-    m_fChain->SetBranchAddress("hit_particleIndex", &m_hit_particleIndex, &m_b_hit_particleIndex);
-    m_fChain->SetBranchAddress("hit_interactionIndex", &m_hit_interactionIndex, &m_b_hit_interactionIndex);
-    m_fChain->SetBranchAddress("hit_pdg", &m_hit_pdg, &m_b_hit_pdg);
     m_fChain->SetBranchAddress("hit_packetFrac", &m_hit_packetFrac, &m_b_hit_packetFrac);
     m_fChain->SetBranchAddress("mcp_energy", &m_mcp_energy, &m_b_mcp_energy);
     m_fChain->SetBranchAddress("mcp_pdg", &m_mcp_pdg, &m_b_mcp_pdg);
     m_fChain->SetBranchAddress("mcp_nuid", &m_mcp_nuid, &m_b_mcp_nuid);
     m_fChain->SetBranchAddress("mcp_vertex_id", &m_mcp_vertex_id, &m_b_mcp_vertex_id);
+    m_fChain->SetBranchAddress("mcp_idLocal", &m_mcp_idLocal, &m_b_mcp_idLocal);
     m_fChain->SetBranchAddress("mcp_id", &m_mcp_id, &m_b_mcp_id);
-    m_fChain->SetBranchAddress("mcp_file_id", &m_mcp_file_id, &m_b_mcp_file_id);
     m_fChain->SetBranchAddress("mcp_mother", &m_mcp_mother, &m_b_mcp_mother);
     m_fChain->SetBranchAddress("mcp_px", &m_mcp_px, &m_b_mcp_px);
     m_fChain->SetBranchAddress("mcp_py", &m_mcp_py, &m_b_mcp_py);
