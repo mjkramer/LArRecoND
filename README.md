@@ -297,12 +297,13 @@ removes neutrons and folds all of the hierarchy to start from the initial neutri
 
 The hierarchy analysis algorithm sets the event number by incrementing the number of times the `Run()` function is called
 (0 to N-1 for N events). If the `-e` input file contains event numbers that are not contiguous, then the following xml
-parameter settings (which must be added to the previous ones) need to be included to set the event numbers correctly
-(which include settings for also storing the run numbers and event timing information):
+parameter settings (which must be added to the previous ones) need to be included to set the event numbers correctly,
+which include settings for storing the run numbers and trigger timing, as well as associating the unique and local MC particle
+IDs for CAF truth matching:
 
 ```xml
     <algorithm type = "LArHierarchyAnalysis">
-        <EventFileName>EventFile.root</EventFileName>
+        <EventFileName>LArRecoNDInput.root</EventFileName>
         <EventTreeName>events</EventTreeName>
         <EventLeafName>event</EventLeafName>
 	<RunLeafName>run</RunLeafName>
@@ -310,6 +311,8 @@ parameter settings (which must be added to the previous ones) need to be include
 	<UnixTimeLeafName>unix_ts</UnixTimeLeafName>
 	<StartTimeLeafName>event_start_t</StartTimeLeafName>
 	<EndTimeLeafName>event_end_t</EndTimeLeafName>
+        <MCIdLeafName>mcp_id</MCIdLeafName>
+        <MCLocalIdLeafName>mcp_idLocal</MCLocalIdLeafName>
         <EventsToSkip>0</EventsToSkip>
     </algorithm>
 ```
@@ -320,8 +323,12 @@ contains the event numbers (which defaults to `events`) and `EventLeafName` defi
 between Pandora algorithms. By default, no events are skipped, but if the `-s` run option is used, then `EventsToSkip` must be equal
 to this integer to ensure that the correct event numbers are found. The additional parameters `RunLeafName` and `SubRunLeafName`
 define the run and sub-run numbers, `UnixTimeLeafName` defines the trigger unix time variable name (units in seconds), while
-`StartTimeLeafName` and `EndTimeLeafName` define the decimal start and end time variable names (units in ticks = 0.1 microseconds),
-respectively. If these are not provided, then they will all be set to zero.
+`StartTimeLeafName` and `EndTimeLeafName` define the decimal start and end time variables (units in ticks = 0.1 microseconds),
+respectively. If these are not provided, then they will all be set to zero. Finally, `MCIdLeafName` and `MCLocalIdLeafName`
+define the variable names used for the unique and local MC truth matching IDs. The unique IDs are used internally by Pandora's
+Hierarchy Tools while the local ones are used by the CAF truth matching. A map is used to retrieve the local ID values given
+the unique ID numbers. If these MC ID variable names are not provided, then only the unique MC IDs are used (the local IDs are
+set equal to them), meaning that the CAF truth matching will only use primary MC particles and not secondaries.
 
 The xml settings files [PandoraSettings_LArRecoND_ThreeD.xml](settings/PandoraSettings_LArRecoND_ThreeD.xml) and
 [PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml) contain

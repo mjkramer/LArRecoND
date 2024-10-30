@@ -597,7 +597,7 @@ void CreateSPMCParticles(const LArSPMC &larspmc, const pandora::Pandora *const p
         // Set parent relationship. For the parent, use its <vertex_id, mcp_idLocal> pair to get its unique ID
         const long mcpMotherID = (*larspmc.m_mcp_mother)[i];
         const std::pair<long, int> parentPair = std::make_pair(mcpVertexID, mcpMotherID);
-        const long mcpParentID = mcIDMap.find(parentPair) != mcIDMap.end() ? mcIDMap[parentPair] : mcpMotherID;
+        const long mcpParentID = (mcIDMap.find(parentPair) != mcIDMap.end()) ? mcIDMap.at(parentPair) : mcpMotherID;
 
         if (mcpParentID == -1) // link to mc neutrino
         {
