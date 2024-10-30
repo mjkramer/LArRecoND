@@ -21,6 +21,8 @@ class TTree;
 namespace lar_content
 {
 
+typedef std::map<long, long> MCIdUniqueLocalMap;
+
 /**
  *  @brief  HierarchyAnalysisAlgorithm class
  */
@@ -64,10 +66,10 @@ private:
     pandora::StatusCode ReadSettings(const pandora::TiXmlHandle xmlHandle);
 
     /**
-     *  @brief  Set the event and run numbers as well as the trigger timing
+     *  @brief  Set the event, run numbers, trigger timing and MCId unique-local map
      *
      */
-    void SetEventRunInfo();
+    void SetEventRunMCIdInfo();
 
     /**
      *  @brief  Create the analysis output using hierarchy tools
@@ -98,15 +100,6 @@ private:
     const RecoMCMatch GetRecoMCMatch(const LArHierarchyHelper::RecoHierarchy::Node *pRecoNode,
         const LArHierarchyHelper::MatchInfo &matchInfo, pandora::MCParticleList &rootMCParticles) const;
 
-    /**
-     *  @brief  Get the associated vertex_id for the given mcNuId value
-     *
-     *  @param  mcNuId The truncated parent neutrino id integer for the MC particle
-     *
-     *  @return The corresponding long vertex_id integer (using the event input file)
-     */
-    long GetVertexId(const int mcNuId) const;
-
     int m_count;                       ///< The number of times the Run() function has been called
     int m_event;                       ///< The actual event number
     int m_run;                         ///< The run number
@@ -114,7 +107,8 @@ private:
     int m_unixTime;                    ///< The unix trigger time (seconds)
     int m_startTime;                   ///< The event trigger start time (ticks = 0.1 usec)
     int m_endTime;                     ///< The event trigger end time (ticks = 0.1 usec)
-    std::vector<long> *m_vertexIds;    ///< The vector of vertex_id's for the event
+    std::vector<long> *m_mcIDs;        ///< The vector of unique MC particle IDs for the event
+    std::vector<long> *m_mcLocalIDs;   ///< The vector of local MC particle IDs for the event
     std::string m_eventFileName;       ///< Name of the ROOT TFile containing the event numbers
     std::string m_eventTreeName;       ///< Name of the ROOT TTree containing the event numbers
     std::string m_eventLeafName;       ///< Name of the event number leaf/variable
@@ -123,7 +117,8 @@ private:
     std::string m_unixTimeLeafName;    ///< Name of the unix time leaf/variable
     std::string m_startTimeLeafName;   ///< Name of the event start time leaf/variable
     std::string m_endTimeLeafName;     ///< Name of the event end time leaf/variable
-    std::string m_vertexIdLeafName;    ///< Name of the vertex_id leaf/variable
+    std::string m_mcIdLeafName;        ///< Name of the uniqne MC particle ID leaf/variable
+    std::string m_mcLocalIdLeafName;   ///< Name of the local MC particle ID leaf/variable
     int m_eventsToSkip;                ///< The number of events to skip (from the start of the event file)
     TFile *m_eventFile;                ///< The ROOT event file pointer
     TTree *m_eventTree;                ///< The ROOT event tree pointer
@@ -141,6 +136,7 @@ private:
     unsigned int m_minRecoGoodViews;   ///< Minimum number of reconstructed primary good views
     bool m_removeRecoNeutrons;         ///< Whether to remove reconstructed neutrons and their downstream particles
     bool m_selectRecoHits;             ///< Whether to select reco hits that overlap with the MC particle hits
+    MCIdUniqueLocalMap m_mcIdMap;      ///< The map of unique-local MCParticle Ids for the given event
 };
 
 } // namespace lar_content
