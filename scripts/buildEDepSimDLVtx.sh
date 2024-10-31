@@ -12,13 +12,13 @@ make -j4 install
 
 # PandoraPFA (cmake setup and .clang-format file)
 cd $MY_TEST_AREA
-git clone git@github.com:PandoraPFA/PandoraPFA.git
+git clone https://github.com/PandoraPFA/PandoraPFA.git
 cd PandoraPFA
 git checkout $PANDORA_PFA_VERSION
 
 # PandoraSDK (Abstract interface and software development kit)
 cd $MY_TEST_AREA
-git clone git@github.com:PandoraPFA/PandoraSDK.git
+git clone https://github.com/PandoraPFA/PandoraSDK.git
 cd PandoraSDK
 git checkout $PANDORA_SDK_VERSION
 mkdir build
@@ -28,7 +28,7 @@ make -j4 install
 
 # PandoraMonitoring
 cd $MY_TEST_AREA
-git clone git@github.com:PandoraPFA/PandoraMonitoring.git
+git clone https://github.com/PandoraPFA/PandoraMonitoring.git
 cd PandoraMonitoring
 git checkout $PANDORA_MONITORING_VERSION
 mkdir build
@@ -49,7 +49,7 @@ make -j4 install
 
 # LArContent (Algorithms) with LibTorch (DLVtx)
 cd $MY_TEST_AREA
-git clone git@github.com:PandoraPFA/LArContent.git
+git clone https://github.com/PandoraPFA/LArContent.git
 cd LArContent
 git checkout $PANDORA_LAR_CONTENT_VERSION
 mkdir build
@@ -82,7 +82,7 @@ make -j4 install
 
 # LArMachineLearningData (for BDT files etc)
 cd $MY_TEST_AREA
-git clone git@github.com:PandoraPFA/LArMachineLearningData.git
+git clone https://github.com/PandoraPFA/LArMachineLearningData.git
 cd LArMachineLearningData
 git checkout $PANDORA_LAR_MLDATA_VERSION
 # Download training files: only do this once to avoid google drive's access restrictions (up to 24 hrs wait)

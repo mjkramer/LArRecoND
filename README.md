@@ -19,8 +19,8 @@ $MY_TEST_AREA environment variable, which specifies the working directory where 
 will be placed (which defaults to the current directory if it is not given):
 
 ```Shell
-source tags.sh MyTestAreaDirPath
-source build.sh
+source scripts/tags.sh MyTestAreaDirPath
+source scripts/build.sh
 ```
 
 ### Alma9 environment at FNAL
@@ -33,8 +33,9 @@ LibTorch and/or edep-sim (Geant4 with CLHEP) is not currently possible within th
 software versions for these extra packages are not yet available or compatible.
 
 ```Shell
-source Alma9_FNAL.sh MyTestAreaDirPath
-source build.sh
+source scripts/Alma9_FNAL.sh
+source scripts/tags.sh MyTestAreaDirPath
+source scripts/build.sh
 ```
 
 ### SL7 environment in FNAL container
@@ -43,9 +44,10 @@ The [ContainerSL7_FNAL.sh](scripts/ContainerSL7_FNAL.sh) script sets up the SL7 
 [apptainer](https://apptainer.org/docs/admin/main/installation.html) container on the FNAL computers:
 
 ```Shell
-source ContainerSL7_FNAL.sh
-source SL7_FNAL.sh MyTestAreaDirPath
-source build.sh
+source scripts/ContainerSL7_FNAL.sh
+source scripts/SL7_FNAL.sh
+source scripts/tags.sh MyTestAreaDirPath
+source scripts/build.sh
 ```
 
 Note that you cannot mix the Alma9 and SL7 environments, i.e. sourcing [Alma9_FNAL.sh](scripts/Alma9_FNAL.sh)
@@ -61,8 +63,9 @@ To use an FNAL-related SL7 CVMFS container for building the code on your laptop 
 
 ```Shell
 apptainer shell -B /cvmfs/ /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7\:latest/
-source SL7_FNAL.sh MyTestAreaDirPath
-source build.sh
+source scripts/SL7_FNAL.sh
+source scripts/tags.sh MyTestAreaDirPath
+source scripts/build.sh
 ```
 
 ### Building with LibTorch for using Deep Learning Vertexing
@@ -74,9 +77,10 @@ available on CVMFS using a container with the SL7 environment on Fermilab comput
 appropriately for your own laptop/PC container setup):
 
 ```Shell
-source ContainerSL7_FNAL.sh
-source SL7_FNAL.sh MyTestAreaDirPath
-source buildDLVtx.sh
+source scripts/ContainerSL7_FNAL.sh
+source scripts/SL7_FNAL.sh
+source scripts/tags.sh MyTestAreaDirPath
+source scripts/buildDLVtx.sh
 ```
 
 ### Building with edep-sim (and LibTorch)
@@ -90,9 +94,10 @@ The build script uses compatible libraries from CVMFS using a container with the
 computers (replace the first script appropriately for your own laptop/PC container setup):
 
 ```Shell
-source ContainerSL7_FNAL.sh
-source SL7_FNAL.sh MyTestAreaDirPath
-source buildEDepSimDLVtx.sh
+source scripts/ContainerSL7_FNAL.sh
+source scripts/SL7_FNAL.sh
+source scripts/tags.sh MyTestAreaDirPath
+source scripts/buildEDepSimDLVtx.sh
 ```
 
 ### LArMachineLearningData
@@ -122,16 +127,22 @@ the optional MyTestAreaDirPath parameter sets the $MY_TEST_AREA environment vari
 working directory if this is not provided):
 
 ```Shell
-source tags.sh MyTestAreaDirPath
+source scripts/tags.sh MyTestAreaDirPath
 ```
 
-```Shell
-source Alma9_FNAL.sh MyTestAreaDirPath
-```
+or
 
 ```Shell
-source ContainerSL7_FNAL.sh
-source SL7_FNAL.sh MyTestAreaDirPath
+source scripts/Alma9_FNAL.sh
+source scripts/tags.sh MyTestAreaDirPath
+```
+
+or
+
+```Shell
+source scripts/ContainerSL7_FNAL.sh
+source scripts/SL7_FNAL.sh
+source scripts/tags.sh MyTestAreaDirPath
 ```
 
 The LArRecoND software is run by using the `PandoraInterface` executable, which is created from the
@@ -166,8 +177,10 @@ gGeoManager->Export("GeometryFile.root")
 .q
 ```
 
-The GDML files for the 2x2 ArgonCube prototype geometry are available in the
-[2x2_sim/geometry](https://github.com/DUNE/2x2_sim/tree/develop/geometry) repository.
+The GDML files for the 2x2 ArgonCube-based prototype geometry are available in the
+[2x2_sim/geometry](https://github.com/DUNE/2x2_sim/tree/develop/geometry) repository,
+and the current recommended file to use is [Merged2x2MINERvA_v4_withRock.gdml](https://github.com/DUNE/2x2_sim/blob/develop/geometry/Merged2x2MINERvA_v4/Merged2x2MINERvA_v4_withRock.gdml).
+
 
 ### 2x2 data
 
@@ -328,7 +341,7 @@ respectively. If these are not provided, then they will all be set to zero. Fina
 define the variable names used for the unique and local MC truth matching IDs. The unique IDs are used internally by Pandora's
 Hierarchy Tools while the local ones are used by the CAF truth matching. A map is used to retrieve the local ID values given
 the unique ID numbers. If these MC ID variable names are not provided, then only the unique MC IDs are used (the local IDs are
-set equal to them), meaning that the CAF truth matching will only use primary MC particles and not secondaries.
+set equal to them), meaning that the CAF truth matching will be incomplete.
 
 The xml settings files [PandoraSettings_LArRecoND_ThreeD.xml](settings/PandoraSettings_LArRecoND_ThreeD.xml) and
 [PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml) contain
@@ -361,7 +374,7 @@ the `/exp/dune/data/users/$USER` data area before they are used for analysis.
 As an example, the following will submit reconstruction jobs for a sample of MiniRun4 input files:
 
 ```Shell
-python createFNALJobs.py --option MiniRun4
+python scripts/createFNALJobs.py --option MiniRun4
 source runJobs_MiniRun4.sh
 ```
 

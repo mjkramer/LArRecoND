@@ -22,6 +22,3 @@ setup libtorch v1_6_0d -q e20
 # For Fermigrid jobs
 setup ifdhc
 setup jobsub_client
-
-# Set Pandora environment variables
-source tags.sh $1
