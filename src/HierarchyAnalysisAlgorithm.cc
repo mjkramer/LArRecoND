@@ -48,9 +48,9 @@ HierarchyAnalysisAlgorithm::HierarchyAnalysisAlgorithm() :
     m_pfoListName{"RecreatedPfos"},
     m_analysisFileName{"LArRecoND.root"},
     m_analysisTreeName{"LArRecoND"},
-    m_foldToPrimaries{true},
-    m_foldDynamic{false},
+    m_foldToPrimaries{false},
     m_foldToLeadingShowers{false},
+    m_foldDynamic{true},
     m_minPurity{0.5f},
     m_minCompleteness{0.1f},
     m_minRecoHits{15},
@@ -98,10 +98,10 @@ StatusCode HierarchyAnalysisAlgorithm::Run()
     LArHierarchyHelper::FoldingParameters foldParameters;
     if (m_foldToPrimaries)
         foldParameters.m_foldToTier = true;
-    else if (m_foldDynamic)
-        foldParameters.m_foldDynamic = true;
     else if (m_foldToLeadingShowers)
         foldParameters.m_foldToLeadingShowers = true;
+    else if (m_foldDynamic)
+        foldParameters.m_foldDynamic = true;
 
     const LArHierarchyHelper::MCHierarchy::ReconstructabilityCriteria recoCriteria(
         m_minRecoHits, m_minRecoHitsPerView, m_minRecoGoodViews, m_removeRecoNeutrons);
@@ -562,9 +562,9 @@ StatusCode HierarchyAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
         STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "AnalysisTreeName", m_analysisTreeName));
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "FoldToPrimaries", m_foldToPrimaries));
-    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "FoldDynamic", m_foldDynamic));
     PANDORA_RETURN_RESULT_IF_AND_IF(
         STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "FoldToLeadingShowers", m_foldToLeadingShowers));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "FoldDynamic", m_foldDynamic));
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "MinPurity", m_minPurity));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "MinCompleteness", m_minCompleteness));

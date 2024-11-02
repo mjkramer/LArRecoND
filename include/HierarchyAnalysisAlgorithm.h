@@ -127,8 +127,8 @@ private:
     std::string m_analysisFileName;    ///< The name of the analysis ROOT file to write
     std::string m_analysisTreeName;    ///< The name of the analysis ROOT tree to write
     bool m_foldToPrimaries;            ///< Whether or not to fold the hierarchy back to primary particles
-    bool m_foldDynamic;                ///< Whether or not to fold the hierarchy dynamically
     bool m_foldToLeadingShowers;       ///< Whether or not to fold the hierarchy back to leading shower particles
+    bool m_foldDynamic;                ///< Whether or not to fold the hierarchy dynamically
     float m_minPurity;                 ///< Minimum purity to tag a node as being of good quality
     float m_minCompleteness;           ///< Minimum completeness to tag a node as being of good quality
     unsigned int m_minRecoHits;        ///< Minimum number of reconstructed primary good hits
