@@ -4,14 +4,18 @@ Standalone Pandora application for developing and running DUNE ND reconstruction
 
 ## Building Pandora with LArRecoND
 
+The [scripts](scripts) directory contains example build and environment setup files. It is
+recommended to first copy this directory, or the files it contains, to a separate working area
+(outside of LArRecoND) before building Pandora.
+
 The [build.sh](scripts/build.sh) script contains a recipe for building LArRecoND with all of the required
 [Pandora](https://github.com/PandoraPFA) packages, based on the instructions from
 [PandoraPFA/Documentation](https://github.com/PandoraPFA/Documentation#2-using-cmake-for-each-individual-package),
 using the versions defined in [tags.sh](scripts/tags.sh). This just requires the [ROOT](https://root.cern/install)
 software to be installed on the system or available using an appropriate
-[CVMFS](https://cvmfs.readthedocs.io/en/stable/cpt-quickstart.html) repository.
-The build script also sets up the [Eigen](https://gitlab.com/libeigen/eigen) header library for
-[LArContent](https://github.com/PandoraPFA/LArContent).
+[CVMFS](https://cvmfs.readthedocs.io/en/stable/cpt-quickstart.html) repository; this is used by Pandora's
+event display and monitoring tools. The build script also sets up the [Eigen](https://gitlab.com/libeigen/eigen)
+header library for [LArContent](https://github.com/PandoraPFA/LArContent).
 
 Before building the software, the Pandora package versions need to be defined by sourcing the
 [tags.sh](scripts/tags.sh) script, which also accepts an optional argument to set the
@@ -33,7 +37,8 @@ LibTorch and/or edep-sim (Geant4 with CLHEP) is not currently possible within th
 software versions for these extra packages are not yet available or compatible.
 
 ```Shell
-source Alma9_FNAL.sh MyTestAreaDirPath
+source Alma9_FNAL.sh
+source tags.sh MyTestAreaDirPath
 source build.sh
 ```
 
@@ -44,9 +49,14 @@ The [ContainerSL7_FNAL.sh](scripts/ContainerSL7_FNAL.sh) script sets up the SL7 
 
 ```Shell
 source ContainerSL7_FNAL.sh
-source SL7_FNAL.sh MyTestAreaDirPath
+source SL7_FNAL.sh
+source tags.sh MyTestAreaDirPath
 source build.sh
 ```
+
+If using the build machines at FNAL, the `apptainer` command in [ContainerSL7_FNAL.sh](scripts/ContainerSL7_FNAL.sh)
+needs to be replaced by `/cvmfs/oasis.opensciencegrid.org/mis/apptainer/current/bin/apptainer`, and the
+`/pnfs/dune` directory needs to be removed for the `-B` option since it is not accessible on those machines.
 
 Note that you cannot mix the Alma9 and SL7 environments, i.e. sourcing [Alma9_FNAL.sh](scripts/Alma9_FNAL.sh)
 followed by [SL7_FNAL.sh](scripts/SL7_FNAL.sh) will give compiler and other environment errors. It is best to
@@ -61,7 +71,8 @@ To use an FNAL-related SL7 CVMFS container for building the code on your laptop 
 
 ```Shell
 apptainer shell -B /cvmfs/ /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-sl7\:latest/
-source SL7_FNAL.sh MyTestAreaDirPath
+source SL7_FNAL.sh
+source tags.sh MyTestAreaDirPath
 source build.sh
 ```
 
@@ -75,7 +86,8 @@ appropriately for your own laptop/PC container setup):
 
 ```Shell
 source ContainerSL7_FNAL.sh
-source SL7_FNAL.sh MyTestAreaDirPath
+source SL7_FNAL.sh
+source tags.sh MyTestAreaDirPath
 source buildDLVtx.sh
 ```
 
@@ -91,7 +103,8 @@ computers (replace the first script appropriately for your own laptop/PC contain
 
 ```Shell
 source ContainerSL7_FNAL.sh
-source SL7_FNAL.sh MyTestAreaDirPath
+source SL7_FNAL.sh
+source tags.sh MyTestAreaDirPath
 source buildEDepSimDLVtx.sh
 ```
 
@@ -125,13 +138,19 @@ working directory if this is not provided):
 source tags.sh MyTestAreaDirPath
 ```
 
+or
+
 ```Shell
-source Alma9_FNAL.sh MyTestAreaDirPath
+source Alma9_FNAL.sh
+source tags.sh MyTestAreaDirPath
 ```
+
+or
 
 ```Shell
 source ContainerSL7_FNAL.sh
-source SL7_FNAL.sh MyTestAreaDirPath
+source SL7_FNAL.sh
+source tags.sh MyTestAreaDirPath
 ```
 
 The LArRecoND software is run by using the `PandoraInterface` executable, which is created from the
@@ -166,8 +185,10 @@ gGeoManager->Export("GeometryFile.root")
 .q
 ```
 
-The GDML files for the 2x2 ArgonCube prototype geometry are available in the
-[2x2_sim/geometry](https://github.com/DUNE/2x2_sim/tree/develop/geometry) repository.
+The GDML files for the 2x2 ArgonCube-based prototype geometry are available in the
+[2x2_sim/geometry](https://github.com/DUNE/2x2_sim/tree/develop/geometry) repository,
+and the current recommended file to use is [Merged2x2MINERvA_v4_withRock.gdml](https://github.com/DUNE/2x2_sim/blob/develop/geometry/Merged2x2MINERvA_v4/Merged2x2MINERvA_v4_withRock.gdml).
+
 
 ### 2x2 data
 
@@ -279,7 +300,9 @@ class. The hierarchy analysis algorithm is enabled using the following example x
         <PfoListName>RecreatedPfos</PfoListName>
         <AnalysisFileName>LArRecoND.root</AnalysisFileName>
         <AnalysisTreeName>LArRecoND</AnalysisTreeName>
-        <FoldToPrimaries>true</FoldToPrimaries>
+        <FoldToPrimaries>false</FoldToPrimaries>
+        <FoldToLeadingShowers>false</FoldToLeadingShowers>
+	<FoldDynamic>true</FoldDynamic>
         <MinPurity>0.5</MinPurity>
         <MinCompleteness>0.1</MinCompleteness>
         <MinRecoHits>15</MinRecoHits>
@@ -292,17 +315,23 @@ class. The hierarchy analysis algorithm is enabled using the following example x
 
 This creates the [TTree](https://root.cern.ch/doc/master/classTTree.html) `LArRecoND` in the output ROOT file `LArRecoND.root`
 using the PFOs stored in Pandora's `RecreatedPfos` list along with the list of hits named `CaloHitList2D` (currently the
-hierarchy tools can only use the 2D views). The hierarchy building and matching requires minimum quality selection criteria,
-removes neutrons and folds all of the hierarchy to start from the initial neutrino primaries.
+hierarchy tools can only use the 2D views). Here, the hierarchy building and matching requires minimum quality selection criteria
+and removes neutrons. There are also several folding options available, which have the following (mutually exclusive)
+initialization order: `FoldToPrimaries` folds the hierarchy down to the primary particles (who's direct parent is the neutrino),
+else the `FoldToLeadingShowers` folds the hierarchy to the main cluster showers, otherwise the recommended option `FoldDynamic`
+attempts to keep both primary and secondary interactions in the hierarchy, only folding elastic-type scatters to the relevant
+parent or child particles. If none of these options are set, then `FoldDynamic` is enabled by default with all the other options
+turned off. If all of these options are set to false, then no folding is done and the full hierarchy tree is kept.
 
 The hierarchy analysis algorithm sets the event number by incrementing the number of times the `Run()` function is called
 (0 to N-1 for N events). If the `-e` input file contains event numbers that are not contiguous, then the following xml
-parameter settings (which must be added to the previous ones) need to be included to set the event numbers correctly
-(which include settings for also storing the run numbers and event timing information):
+parameter settings (which must be added to the previous ones) need to be included to set the event numbers correctly,
+which include settings for storing the run numbers and trigger timing, as well as associating the unique and local MC particle
+IDs for CAF truth matching:
 
 ```xml
     <algorithm type = "LArHierarchyAnalysis">
-        <EventFileName>EventFile.root</EventFileName>
+        <EventFileName>LArRecoNDInput.root</EventFileName>
         <EventTreeName>events</EventTreeName>
         <EventLeafName>event</EventLeafName>
 	<RunLeafName>run</RunLeafName>
@@ -310,6 +339,8 @@ parameter settings (which must be added to the previous ones) need to be include
 	<UnixTimeLeafName>unix_ts</UnixTimeLeafName>
 	<StartTimeLeafName>event_start_t</StartTimeLeafName>
 	<EndTimeLeafName>event_end_t</EndTimeLeafName>
+        <MCIdLeafName>mcp_id</MCIdLeafName>
+        <MCLocalIdLeafName>mcp_idLocal</MCLocalIdLeafName>
         <EventsToSkip>0</EventsToSkip>
     </algorithm>
 ```
@@ -320,8 +351,12 @@ contains the event numbers (which defaults to `events`) and `EventLeafName` defi
 between Pandora algorithms. By default, no events are skipped, but if the `-s` run option is used, then `EventsToSkip` must be equal
 to this integer to ensure that the correct event numbers are found. The additional parameters `RunLeafName` and `SubRunLeafName`
 define the run and sub-run numbers, `UnixTimeLeafName` defines the trigger unix time variable name (units in seconds), while
-`StartTimeLeafName` and `EndTimeLeafName` define the decimal start and end time variable names (units in ticks = 0.1 microseconds),
-respectively. If these are not provided, then they will all be set to zero.
+`StartTimeLeafName` and `EndTimeLeafName` define the decimal start and end time variables (units in ticks = 0.1 microseconds),
+respectively. If these are not provided, then they will all be set to zero. Finally, `MCIdLeafName` and `MCLocalIdLeafName`
+define the variable names used for the unique and local MC truth matching IDs. The unique IDs are used internally by Pandora's
+Hierarchy Tools while the local ones are used by the CAF truth matching. A map is used to retrieve the local ID values given
+the unique ID numbers. If these MC ID variable names are not provided, then only the unique MC IDs are used (the local IDs are
+set equal to them), meaning that the CAF truth matching will be incomplete.
 
 The xml settings files [PandoraSettings_LArRecoND_ThreeD.xml](settings/PandoraSettings_LArRecoND_ThreeD.xml) and
 [PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRecoND_ThreeD_DLVtx.xml) contain
@@ -354,7 +389,7 @@ the `/exp/dune/data/users/$USER` data area before they are used for analysis.
 As an example, the following will submit reconstruction jobs for a sample of MiniRun4 input files:
 
 ```Shell
-python createFNALJobs.py --option MiniRun4
+python scripts/createFNALJobs.py --option MiniRun4
 source runJobs_MiniRun4.sh
 ```
 

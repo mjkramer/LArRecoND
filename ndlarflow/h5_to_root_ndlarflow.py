@@ -289,15 +289,15 @@ def main(argv=None):
             # grab event hit list and variables
             hits_id=np.ma.getdata(event_calib_prompt_hits["id"][0])
             if (len(hits_id)<2): continue
-            if (useData==False): 
+            if (useData==False):
                  
                 # find spillID to use for truth info
                 spillArray=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/segments",hits_id[0]]["event_id"][0][0][0]
-                # find all truth info and fill it using a complicated vector 
-                allTrajectories,allVertices,nuVertexArray,trajVertexID = find_all_truth_in_spill(spillArray, flow_out)
+                # find all truth info and fill it using dictionaries
+                allTrajectories,allVertices = find_all_truth_in_spill(spillArray, flow_out)
                 
                 [nuID.push_back(int(i)) for i in allVertices["nuVertexID"]]
-                [vertex_id.push_back(int(i)) for i in nuVertexArray]
+                [vertex_id.push_back(int(i)) for i in allVertices["nuVertexID"]]
                 [nue.push_back(i) for i in allVertices["nuVertexE"]]
                 [nuPDG.push_back(int(i)) for i in allVertices["nuPDG"]]
                 [nuvtxx.push_back(i+trueXOffset) for i in allVertices["nuVertexX"]]
@@ -323,7 +323,7 @@ def main(argv=None):
                 [mcp_id.push_back(int(i)) for i in allTrajectories["file_traj_id"]]
                 [mcp_idLocal.push_back(int(i)) for i in allTrajectories["traj_id"]]
                 [mcp_energy.push_back(i) for i in allTrajectories["trajE"]]
-                [mcp_vertex_id.push_back(int(i)) for i in trajVertexID]
+                [mcp_vertex_id.push_back(int(i)) for i in allTrajectories["trajVertexID"]]
                 
             # fill event info
             eventID[0]           = event['id'] 
@@ -656,23 +656,22 @@ def find_all_truth_in_spill(spillID, flow_out):
     nuPz=[]
     nuCode=[]
     nuCC=[]
-    nuVertexArray=[]
     vertices={}
     for vertex_indices in vertex_indicesArray:
         vtx = flow_out["/mc_truth/interactions/data"][vertex_indices]
-        nuVertexArray.append(vtx["vertex_id"])
-        nuVertexX    .append(vtx["vertex"][0])
-        nuVertexY    .append(vtx["vertex"][1])
-        nuVertexZ    .append(vtx["vertex"][2])
-        nuVertexE    .append(vtx["Enu"]*MeV2GeV)
-        nuPDG        .append(vtx["nu_pdg"])
-        nuPx         .append(vtx["nu_4mom"][0]*MeV2GeV)
-        nuPy         .append(vtx["nu_4mom"][1]*MeV2GeV)
-        nuPz         .append(vtx["nu_4mom"][2]*MeV2GeV)
+        nuVertexID.append(vtx["vertex_id"])
+        nuVertexX .append(vtx["vertex"][0])
+        nuVertexY .append(vtx["vertex"][1])
+        nuVertexZ .append(vtx["vertex"][2])
+        nuVertexE .append(vtx["Enu"]*MeV2GeV)
+        nuPDG     .append(vtx["nu_pdg"])
+        nuPx      .append(vtx["nu_4mom"][0]*MeV2GeV)
+        nuPy      .append(vtx["nu_4mom"][1]*MeV2GeV)
+        nuPz      .append(vtx["nu_4mom"][2]*MeV2GeV)
         code,cc=get_nuance_code(vertex_indices,flow_out)
         nuCode.append(code)
         nuCC.append(cc)
-    vertices["nuVertexID"]=nuVertexArray
+    vertices["nuVertexID"]=nuVertexID
     vertices["nuVertexX"]=nuVertexX
     vertices["nuVertexY"]=nuVertexY
     vertices["nuVertexZ"]=nuVertexZ
@@ -683,7 +682,7 @@ def find_all_truth_in_spill(spillID, flow_out):
     vertices["nuPz"]=nuPz
     vertices["nuCode"]=nuCode
     vertices["nuCC"]=nuCC
-    return trajectories, vertices, nuVertexArray, trajVertexID
+    return trajectories, vertices
 
 def get_nuance_code(vertex_num,flow_out):
     # convert the neutrino information to nuance code from PandoraInterface code

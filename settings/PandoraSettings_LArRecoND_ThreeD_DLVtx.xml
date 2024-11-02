@@ -56,12 +56,16 @@
 	<UnixTimeLeafName>unix_ts</UnixTimeLeafName>
 	<StartTimeLeafName>event_start_t</StartTimeLeafName>
 	<EndTimeLeafName>event_end_t</EndTimeLeafName>
+	<MCIdLeafName>mcp_id</MCIdLeafName>
+	<MCLocalIdLeafName>mcp_idLocal</MCLocalIdLeafName>
 	<EventsToSkip>0</EventsToSkip>
         <CaloHitListName>CaloHitList2D</CaloHitListName>
         <PfoListName>RecreatedPfos</PfoListName>
         <AnalysisFileName>LArRecoND.root</AnalysisFileName>
         <AnalysisTreeName>LArRecoND</AnalysisTreeName>
-        <FoldToPrimaries>true</FoldToPrimaries>
+        <FoldToPrimaries>false</FoldToPrimaries>
+        <FoldToLeadingShowers>false</FoldToLeadingShowers>
+	<FoldDynamic>true</FoldDynamic>
         <MinPurity>0.5</MinPurity>
         <MinCompleteness>0.1</MinCompleteness>
         <MinRecoHits>15</MinRecoHits>

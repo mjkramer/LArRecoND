@@ -29,7 +29,8 @@ HierarchyAnalysisAlgorithm::HierarchyAnalysisAlgorithm() :
     m_unixTime{0},
     m_startTime{0},
     m_endTime{0},
-    m_vertexIds{nullptr},
+    m_mcIDs{nullptr},
+    m_mcLocalIDs{nullptr},
     m_eventFileName{""},
     m_eventTreeName{"events"},
     m_eventLeafName{"event"},
@@ -38,7 +39,8 @@ HierarchyAnalysisAlgorithm::HierarchyAnalysisAlgorithm() :
     m_unixTimeLeafName{"unix_ts"},
     m_startTimeLeafName{"event_start_t"},
     m_endTimeLeafName{"event_end_t"},
-    m_vertexIdLeafName{"vertex_id"},
+    m_mcIdLeafName{"mcp_id"},
+    m_mcLocalIdLeafName{"mcp_idLocal"},
     m_eventsToSkip{0},
     m_eventFile{nullptr},
     m_eventTree{nullptr},
@@ -46,16 +48,17 @@ HierarchyAnalysisAlgorithm::HierarchyAnalysisAlgorithm() :
     m_pfoListName{"RecreatedPfos"},
     m_analysisFileName{"LArRecoND.root"},
     m_analysisTreeName{"LArRecoND"},
-    m_foldToPrimaries{true},
-    m_foldDynamic{false},
+    m_foldToPrimaries{false},
     m_foldToLeadingShowers{false},
+    m_foldDynamic{true},
     m_minPurity{0.5f},
     m_minCompleteness{0.1f},
     m_minRecoHits{15},
     m_minRecoHitsPerView{5},
     m_minRecoGoodViews{2},
     m_removeRecoNeutrons{true},
-    m_selectRecoHits{true}
+    m_selectRecoHits{true},
+    m_mcIdMap{}
 {
 }
 
@@ -95,10 +98,10 @@ StatusCode HierarchyAnalysisAlgorithm::Run()
     LArHierarchyHelper::FoldingParameters foldParameters;
     if (m_foldToPrimaries)
         foldParameters.m_foldToTier = true;
-    else if (m_foldDynamic)
-        foldParameters.m_foldDynamic = true;
     else if (m_foldToLeadingShowers)
         foldParameters.m_foldToLeadingShowers = true;
+    else if (m_foldDynamic)
+        foldParameters.m_foldDynamic = true;
 
     const LArHierarchyHelper::MCHierarchy::ReconstructabilityCriteria recoCriteria(
         m_minRecoHits, m_minRecoHitsPerView, m_minRecoGoodViews, m_removeRecoNeutrons);
@@ -113,8 +116,8 @@ StatusCode HierarchyAnalysisAlgorithm::Run()
     LArHierarchyHelper::MatchHierarchies(matchInfo);
     matchInfo.Print(mcHierarchy);
 
-    // Set the event run number and trigger timing info
-    this->SetEventRunInfo();
+    // Set the event run number and trigger timing info, as well as the unique-local MCParticle Id map
+    this->SetEventRunMCIdInfo();
 
     // Analysis PFO & matched reco-MC output
     this->EventAnalysisOutput(matchInfo);
@@ -124,14 +127,22 @@ StatusCode HierarchyAnalysisAlgorithm::Run()
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void HierarchyAnalysisAlgorithm::SetEventRunInfo()
+void HierarchyAnalysisAlgorithm::SetEventRunMCIdInfo()
 {
-    // Set the event and run numbers as well as the trigger timing
+    // Set the event and run numbers as well as the trigger timing.
+    // Also fill the map linking the local & unique MC particle Ids.
+    // MCParticles use unique MC Ids, but CAFs need the local ones as well
+    m_mcIdMap.clear();
+
     if (m_eventTree)
     {
-        // This will set m_event
+        // Sets m_event, m_run, m_subRun, m_unixTime, m_startTime & m_endTime
         const int iEntry = m_count + m_eventsToSkip;
         m_eventTree->GetEntry(iEntry);
+
+        // Fill the Id map
+        for (size_t i = 0; i < m_mcIDs->size(); i++)
+            m_mcIdMap[(*m_mcIDs)[i]] = (*m_mcLocalIDs)[i];
     }
     else
         // Use the algorithm run count number
@@ -153,17 +164,17 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
     FloatVector dirXVect, dirYVect, dirZVect, centroidXVect, centroidYVect, centroidZVect;
     FloatVector primaryLVect, secondaryLVect, tertiaryLVect, energyVect;
     // Best matched MC info
-    IntVector matchVect, mcPDGVect, mcIdVect, nSharedHitsVect, isPrimaryVect;
+    IntVector matchVect, mcPDGVect, nSharedHitsVect, isPrimaryVect;
     FloatVector completenessVect, purityVect;
     // MC matched energy, momentum, vertex and end position
     FloatVector mcEVect, mcPxVect, mcPyVect, mcPzVect;
     FloatVector mcVtxXVect, mcVtxYVect, mcVtxZVect, mcEndXVect, mcEndYVect, mcEndZVect;
     // MC neutrino parent info
-    IntVector mcNuPDGVect, mcNuIdVect, mcNuCodeVect;
+    IntVector mcNuPDGVect, mcNuCodeVect;
     FloatVector mcNuVtxXVect, mcNuVtxYVect, mcNuVtxZVect;
     FloatVector mcNuEVect, mcNuPxVect, mcNuPyVect, mcNuPzVect;
-    // For the MC vertex_ids
-    std::vector<long> mcVertexIdVect;
+    // Long integers for the MC IDs: vertex, unique and local trajectories
+    std::vector<long> mcNuIdVect, mcIdVect, mcLocalIdVect;
 
     // Get the list of root MCParticles for the MC truth matching
     MCParticleList rootMCParticles;
@@ -295,7 +306,9 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
                 const MCParticle *pLeadingMC = bestMatch.m_pLeadingMC;
                 const int gotMatch = (pLeadingMC != nullptr) ? 1 : 0;
                 const int mcPDG = (pLeadingMC != nullptr) ? pLeadingMC->GetParticleId() : 0;
-                const int mcId = (pLeadingMC != nullptr) ? reinterpret_cast<intptr_t>(pLeadingMC->GetUid()) : 0;
+                // Unique and local MC Ids
+                const long mcId = (pLeadingMC != nullptr) ? reinterpret_cast<intptr_t>(pLeadingMC->GetUid()) : 0;
+                const long mcLocalId = (m_mcIdMap.find(mcId) != m_mcIdMap.end()) ? m_mcIdMap.at(mcId) : mcId;
                 const int isPrimary = (pLeadingMC != nullptr && LArMCParticleHelper::IsPrimary(pLeadingMC)) ? 1 : 0;
                 const float mcEnergy = (pLeadingMC != nullptr) ? pLeadingMC->GetEnergy() : 0.f;
                 const CartesianVector mcMomentum = (pLeadingMC != nullptr) ? pLeadingMC->GetMomentum() : CartesianVector(0.f, 0.f, 0.f);
@@ -305,18 +318,17 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
                 // MC neutrino parent info, including Nuance interaction code
                 const MCParticle *pNuRoot = bestMatch.m_pNuRoot;
                 const int mcNuPDG = (pNuRoot != nullptr) ? pNuRoot->GetParticleId() : 0;
-                const int mcNuId = (pNuRoot != nullptr) ? reinterpret_cast<intptr_t>(pNuRoot->GetUid()) : 0;
+                // Neutrino Id = unique vertex Id
+                const long mcNuId = (pNuRoot != nullptr) ? reinterpret_cast<intptr_t>(pNuRoot->GetUid()) : 0;
                 const int mcNuCode = (dynamic_cast<const LArMCParticle *>(pNuRoot) != nullptr) ? LArMCParticleHelper::GetNuanceCode(pNuRoot) : 0;
                 const CartesianVector mcNuVertex = (pNuRoot != nullptr) ? pNuRoot->GetVertex() : CartesianVector(max, max, max);
                 const float mcNuEnergy = (pNuRoot != nullptr) ? pNuRoot->GetEnergy() : 0.f;
                 const CartesianVector mcNuMomentum = (pNuRoot != nullptr) ? pNuRoot->GetMomentum() : CartesianVector(0.f, 0.f, 0.f);
 
-                // Use the input event file to get the corresponding vertex_id for the given mcNuId
-                const long vertexId = this->GetVertexId(mcNuId);
-
                 matchVect.emplace_back(gotMatch);
                 mcPDGVect.emplace_back(mcPDG);
                 mcIdVect.emplace_back(mcId);
+                mcLocalIdVect.emplace_back(mcLocalId);
                 isPrimaryVect.emplace_back(isPrimary);
                 nSharedHitsVect.emplace_back(bestMatch.m_nSharedHits);
                 completenessVect.emplace_back(bestMatch.m_completeness);
@@ -333,7 +345,6 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
                 mcEndZVect.emplace_back(mcEndPoint.GetZ());
                 mcNuPDGVect.emplace_back(mcNuPDG);
                 mcNuIdVect.emplace_back(mcNuId);
-                mcVertexIdVect.emplace_back(vertexId);
                 mcNuCodeVect.emplace_back(mcNuCode);
                 mcNuVtxXVect.emplace_back(mcNuVertex.GetX());
                 mcNuVtxYVect.emplace_back(mcNuVertex.GetY());
@@ -382,6 +393,7 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "gotMatch", &matchVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcPDG", &mcPDGVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcId", &mcIdVect));
+    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcLocalId", &mcLocalIdVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "isPrimary", &isPrimaryVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "nSharedHits", &nSharedHitsVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "completeness", &completenessVect));
@@ -398,7 +410,6 @@ void HierarchyAnalysisAlgorithm::EventAnalysisOutput(const LArHierarchyHelper::M
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcEndZ", &mcEndZVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcNuPDG", &mcNuPDGVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcNuId", &mcNuIdVect));
-    PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcVertexId", &mcVertexIdVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcNuCode", &mcNuCodeVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcNuVtxX", &mcNuVtxXVect));
     PANDORA_MONITORING_API(SetTreeVariable(this->GetPandora(), m_analysisTreeName.c_str(), "mcNuVtxY", &mcNuVtxYVect));
@@ -490,43 +501,6 @@ HierarchyAnalysisAlgorithm::RecoMCMatch::RecoMCMatch(const pandora::MCParticle *
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-long HierarchyAnalysisAlgorithm::GetVertexId(const int mcNuId) const
-{
-    // Get the associated vertex_id value for the given truncated neutrino parent id.
-    // This loops over the vertex_id long values, truncates and compares them to mcNuId,
-    // and returns the corresponding matched vertex_id. The neutrino id values are truncated
-    // in the H5-to-ROOT flow script (converting them from long integers to integers), but
-    // we need the original long vertex_id values for making CAFs
-
-    // Neutrino id 10^8 offset
-    const int nuIdOffset(100000000);
-
-    long vertexId(mcNuId);
-    for (const long &vtxId : *m_vertexIds)
-    {
-        const std::string vtxIdStr = std::to_string(vtxId);
-        const size_t nDigits = vtxIdStr.size();
-        if (nDigits > 5)
-        {
-            // truncated number: first digit + last 5 digits
-            const std::string truncStr = vtxIdStr.at(0) + vtxIdStr.substr(nDigits - 5);
-
-            // Convert truncated number string to an integer and add nuIdOffset
-            const int truncId = std::stoi(truncStr) + nuIdOffset;
-
-            // Compare with mcNuId
-            if (truncId == mcNuId)
-            {
-                // We have found the corresponding vertex_id
-                vertexId = vtxId;
-                break;
-            }
-        }
-    }
-
-    return vertexId;
-}
-
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 StatusCode HierarchyAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
@@ -541,8 +515,9 @@ StatusCode HierarchyAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
     PANDORA_RETURN_RESULT_IF_AND_IF(
         STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "StartTimeLeafName", m_startTimeLeafName));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EndTimeLeafName", m_endTimeLeafName));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "MCIdLeafName", m_mcIdLeafName));
     PANDORA_RETURN_RESULT_IF_AND_IF(
-        STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "VertexIdLeafName", m_vertexIdLeafName));
+        STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "MCLocalIdLeafName", m_mcLocalIdLeafName));
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "EventsToSkip", m_eventsToSkip));
 
@@ -564,14 +539,16 @@ StatusCode HierarchyAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
                 m_eventTree->SetBranchStatus(m_unixTimeLeafName.c_str(), 1);
                 m_eventTree->SetBranchStatus(m_startTimeLeafName.c_str(), 1);
                 m_eventTree->SetBranchStatus(m_endTimeLeafName.c_str(), 1);
-                m_eventTree->SetBranchStatus(m_vertexIdLeafName.c_str(), 1);
+                m_eventTree->SetBranchStatus(m_mcIdLeafName.c_str(), 1);
+                m_eventTree->SetBranchStatus(m_mcLocalIdLeafName.c_str(), 1);
                 m_eventTree->SetBranchAddress(m_eventLeafName.c_str(), &m_event);
                 m_eventTree->SetBranchAddress(m_runLeafName.c_str(), &m_run);
                 m_eventTree->SetBranchAddress(m_subRunLeafName.c_str(), &m_subRun);
                 m_eventTree->SetBranchAddress(m_unixTimeLeafName.c_str(), &m_unixTime);
                 m_eventTree->SetBranchAddress(m_startTimeLeafName.c_str(), &m_startTime);
                 m_eventTree->SetBranchAddress(m_endTimeLeafName.c_str(), &m_endTime);
-                m_eventTree->SetBranchAddress(m_vertexIdLeafName.c_str(), &m_vertexIds);
+                m_eventTree->SetBranchAddress(m_mcIdLeafName.c_str(), &m_mcIDs);
+                m_eventTree->SetBranchAddress(m_mcLocalIdLeafName.c_str(), &m_mcLocalIDs);
             }
         }
     }
@@ -585,9 +562,9 @@ StatusCode HierarchyAnalysisAlgorithm::ReadSettings(const TiXmlHandle xmlHandle)
         STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "AnalysisTreeName", m_analysisTreeName));
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "FoldToPrimaries", m_foldToPrimaries));
-    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "FoldDynamic", m_foldDynamic));
     PANDORA_RETURN_RESULT_IF_AND_IF(
         STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "FoldToLeadingShowers", m_foldToLeadingShowers));
+    PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "FoldDynamic", m_foldDynamic));
 
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "MinPurity", m_minPurity));
     PANDORA_RETURN_RESULT_IF_AND_IF(STATUS_CODE_SUCCESS, STATUS_CODE_NOT_FOUND, !=, XmlHelper::ReadValue(xmlHandle, "MinCompleteness", m_minCompleteness));

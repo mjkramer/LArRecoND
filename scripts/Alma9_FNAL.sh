@@ -10,6 +10,3 @@ spack load root@6.28.12
 
 # For copying job files: ifdh cp origFile copyFile
 spack load ifdhc@2.6.20
-
-# Set Pandora environment variables
-source tags.sh $1
