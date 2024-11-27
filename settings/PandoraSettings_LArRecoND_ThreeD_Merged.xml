@@ -91,6 +91,7 @@
         <MinRecoHitsPerView>5</MinRecoHitsPerView>
         <MinRecoGoodViews>2</MinRecoGoodViews>
         <RemoveRecoNeutrons>true</RemoveRecoNeutrons>
+	<SelectRecoHits>true</SelectRecoHits>
     </algorithm>
 -->
 

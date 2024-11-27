@@ -176,18 +176,22 @@ by the $FW_SEARCH_PATH environment variable, which is set by the [tags.sh](scrip
 
 The ND-LAr geometry needs to be provided as a ROOT file containing the
 [TGeoManager](https://root.cern.ch/doc/master/classTGeoManager.html) object, specified by the `-g` run parameter.
-These can be created from [GDML](https://gdml.web.cern.ch/GDML/) files using ROOT:
+These can be created from [GDML](https://gdml.web.cern.ch/GDML/) files using ROOT, where the first two calls
+set the length units to cm:
 
 ```Shell
 root -l
-TGeoManager::Import("GeometryFile.gdml")
-gGeoManager->Export("GeometryFile.root")
+TGeoManager::LockDefaultUnits(kFALSE);
+TGeoManager::SetDefaultUnits(TGeoManager::kRootUnits);
+TGeoManager::Import("GeometryFile.gdml");
+gGeoManager->Export("GeometryFile.root");
 .q
 ```
 
 The GDML files for the 2x2 ArgonCube-based prototype geometry are available in the
 [2x2_sim/geometry](https://github.com/DUNE/2x2_sim/tree/develop/geometry) repository,
-and the current recommended file to use is [Merged2x2MINERvA_v4_withRock.gdml](https://github.com/DUNE/2x2_sim/blob/develop/geometry/Merged2x2MINERvA_v4/Merged2x2MINERvA_v4_withRock.gdml).
+and the current recommended file to use is
+[Merged2x2MINERvA_v4_withRock.gdml](https://github.com/DUNE/2x2_sim/blob/develop/geometry/Merged2x2MINERvA_v4/Merged2x2MINERvA_v4_withRock.gdml).
 
 
 ### 2x2 data
@@ -274,12 +278,14 @@ the [PandoraSettings_LArRecoND_ThreeD_DLVtx.xml](settings/PandoraSettings_LArRec
 ### Event displays
 
 Pandora uses ROOT's [TEve](https://root.cern/doc/master/group__TEve.html) module for event displays in monitoring algorithms such as
-[LArVisualMonitoring](https://github.com/PandoraPFA/LArContent/blob/master/larpandoracontent/LArMonitoring/VisualMonitoringAlgorithm.cc#L364).
-This is enabled in the [PandoraSettings_LArRecoND_ThreeD.xml](settings/PandoraSettings_LArRecoND_ThreeD.xml) settings
-file, for example. Calling the `LArVisualMonitoring` algorithm at specific locations in the xml file will run the event display
-at that point in the reconstruction algorithm flow. To disable the event display (e.g. to run in batch jobs or if there are display
-problems with ROOT), comment out or remove the visual monitoring calls in the xml run file, or set the global
-`IsMonitoringEnabled` variable to false (which also disables the ROOT output from the hierarchy validation tools):
+[LArVisualMonitoring](https://github.com/PandoraPFA/LArContent/blob/master/larpandoracontent/LArMonitoring/VisualMonitoringAlgorithm.cc#L364)
+and [LArHierarchyMonitoring](https://github.com/PandoraPFA/LArContent/blob/master/larpandoracontent/LArMonitoring/HierarchyMonitoringAlgorithm.cc#L479).
+Calling the `LArVisualMonitoring` and/or `LArHierarchyMonitoring` algorithms at specific places in the xml run file,
+for example [PandoraSettings_LArRecoND_ThreeD.xml](settings/PandoraSettings_LArRecoND_ThreeD.xml), will run the
+event display at those moments in the reconstruction algorithm flow. To disable the event display (e.g. to run in
+batch jobs or if there are display problems with ROOT), comment out or remove the visual monitoring calls in the
+xml run file, or set the global `IsMonitoringEnabled` variable to false (which also disables the ROOT output from
+the hierarchy validation tools):
 
 ```xml
     <IsMonitoringEnabled>false</IsMonitoringEnabled>
