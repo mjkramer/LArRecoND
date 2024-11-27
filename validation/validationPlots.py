@@ -1,4 +1,4 @@
-# Create hierarchy validation plots (eff, purity, completeness, vtx etc.)
+# Create QA plots from Validation.root (eff, purity, completeness, vtx etc.)
 
 import argparse
 import array
@@ -9,19 +9,14 @@ import sys
 
 class parameters(object):
 
-    def __init__(self, mcFileName, mcTreeName, evtFileName, evtTreeName):
+    def __init__(self, mcFileName, mcTreeName):
         # MC hierarchy file and tree names
         self.mcFileName = mcFileName
         self.mcTreeName = mcTreeName
 
-        # Event hierarchy file and tree names
-        self.evtFileName = evtFileName
-        self.evtTreeName = evtTreeName
-
-        # Output histogram filenames
+        # Output histogram filename
         self.histMCFileName = mcFileName.replace('.root', '_Histos.root')
-        self.histEvtFileName = evtFileName.replace('.root', '_Histos.root')
-        
+
         # Quality cuts
         self.minCompleteness = 0.1
         self.minPurity = 0.5
@@ -42,7 +37,7 @@ class histoMCList(object):
         self.mtmEff = mtmEff
         self.completeness = completeness
         self.purity = purity
-        
+
 
 class histoVtxList(object):
 
@@ -52,7 +47,7 @@ class histoVtxList(object):
         self.hVtxDY = hVtxDY
         self.hVtxDZ = hVtxDZ
         self.hVtxDR = hVtxDR
-        
+
 
 class crystalBallFun(object):
 
@@ -74,7 +69,7 @@ class crystalBallFun(object):
             t = (x - x0)/sigmaL
         else:
             t = (x - x0)/sigmaR
-        
+
         value = 0.0
         if (t < alphaL):
             value = self.getTail(t, alphaL, nL)
@@ -94,7 +89,7 @@ class crystalBallFun(object):
             result = a/math.pow(abs(b-t), n)
         return result
 
- 
+
 def getParticleType(mcPDG):
 
     name = 'Unknown'
@@ -129,7 +124,7 @@ def defineMCHistos(pars):
     for iB in range(nHitBinEdges):
         edge = math.pow(10.0, 1.0 + (iB*1.0 + 2.0)*0.1)
         hitsBinning[iB] = edge
-        
+
     # momentum binning
     nMtmBins = 26
     mtmBinning = array.array('d', [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.4,
@@ -144,7 +139,7 @@ def defineMCHistos(pars):
         hHitsAll.SetDirectory(0)
         hHitsAll.GetXaxis().SetTitle('Number of Hits')
         hHitsAll.GetYaxis().SetTitle('Number of Events')
-        
+
         hHitsEff = ROOT.TH1F('{0}_HitsEff'.format(pLabel), '', nHitBins, hitsBinning)
         hHitsEff.SetDirectory(0)
         hHitsEff.GetXaxis().SetTitle('Number of Hits')
@@ -206,7 +201,7 @@ def defineVtxHistos(pars):
     # Object storing the list of histograms
     hVtxList = histoVtxList(hVtxDX, hVtxDY, hVtxDZ, hVtxDR)
     return hVtxList
-    
+
 
 def createMCHistos(pars):
 
@@ -229,67 +224,77 @@ def createMCHistos(pars):
 
         # Get tree entry
         mcTree.GetEntry(i)
-
-        event = getattr(mcTree, 'event')
+        event = getattr(mcTree, 'eventNumber')
 
         if i%10000 == 0:
             print('MC entry {0}'.format(nMC-i))
-            
-        # Get MC particle PDG Id
-        mcPDG = getattr(mcTree, 'mcPDG')
-        # Get particle name type
-        mcType = getParticleType(mcPDG)
 
-        # Require known particle type
-        if mcType == 'Unknown':
-            continue
+        # Get the vectors of MC variables for this event
+        pdgVect = getattr(mcTree, 'mcPrimaryPdg')
+        matchedVect = getattr(mcTree, 'nPrimaryMatchedPfos')
+        pxVect = getattr(mcTree, 'mcPrimaryPX')
+        pyVect = getattr(mcTree, 'mcPrimaryPY')
+        pzVect = getattr(mcTree, 'mcPrimaryPZ')
+        bestSharedVect = getattr(mcTree, 'bestMatchPfoNSharedHitsTotal')
+        nMCHitsVect = getattr(mcTree, 'mcPrimaryNHitsTotal')
+        bestNHitsVect = getattr(mcTree, 'bestMatchPfoNHitsTotal')
 
-        # Histogram list for given particle type
-        hList = histMCMap[mcType]
+        # Loop over PDG entries
+        for j,mcPDG in enumerate(pdgVect):
 
-        # Number of hits and true momentum
-        hHitsAll = hList.hitsAll
-        mcNHits = getattr(mcTree, 'mcNHits')
-        hHitsAll.Fill(mcNHits)
+            # Get particle name type
+            mcType = getParticleType(mcPDG)
 
-        mcMtm = getattr(mcTree, 'mcMtm')
-        nMatches = getattr(mcTree, 'nMatches')
-        
-        hMtmAll = hList.mtmAll
-        hMtmAll.Fill(mcMtm)
+            # Require known particle type
+            if mcType == 'Unknown':
+                continue
 
-        # Find best completeness MC-reco match and its corresponding purity
-        completeVect = getattr(mcTree, 'completenessVector')
-        purityVect = getattr(mcTree, 'purityVector')
-        nSharedHitsVect = getattr(mcTree, 'nSharedHitsVector')
-            
-        complete = 0.0
-        purity = 0.0
-        nSharedHits = 0
-        bestNShared = 0
-        for iC,nShared in enumerate(nSharedHitsVect):
-            if nShared > bestNShared:
-                bestNShared = nShared
-                complete = completeVect[iC]
-                purity = purityVect[iC]
+            # Histogram list for given particle type
+            hList = histMCMap[mcType]
 
-        # Check for minimum completeness, purity and number of shared hits
-        if nMatches > 0 and complete >= pars.minCompleteness and purity >= pars.minPurity \
-           and bestNShared >= pars.minNSharedHits:
+            # MC particle momentum
+            px = pxVect[j]
+            py = pyVect[j]
+            pz = pzVect[j]
+            p = math.sqrt(px*px + py*py + pz*pz)
 
-            # Efficiency numerator (hits & true momentum)
-            hHitsEff = hList.hitsEff
-            hHitsEff.Fill(mcNHits)
+            # Number of matches, hits, best match hits, completeness, purity
+            nMatches = matchedVect[j]
+            nMCHits = nMCHitsVect[j]
+            nBest = bestNHitsVect[j]
+            bestShared = bestSharedVect[j]
+            bestComplete = 0.0
+            bestPurity = 0.0
 
-            hMtmEff = hList.mtmEff
-            hMtmEff.Fill(mcMtm)
+            if nMCHits > 0:
+                bestComplete = bestShared/nMCHits
+            if nBest > 0:
+                bestPurity = bestShared/nBest
 
-            # Fill completeness and purity histos
-            hCompleteness = hList.completeness
-            hCompleteness.Fill(complete)
+            # Number of hits and true momentum
+            hHitsAll = hList.hitsAll
+            hHitsAll.Fill(nMCHits)
 
-            hPurity = hList.purity
-            hPurity.Fill(purity)
+            hMtmAll = hList.mtmAll
+            hMtmAll.Fill(p)
+
+            # Check for number of matches and shared hits
+            if nMatches > 0 and bestShared >= pars.minNSharedHits and \
+               bestComplete >= pars.minCompleteness and bestPurity >= pars.minPurity:
+
+                # Efficiency numerator (hits & true momentum)
+                hHitsEff = hList.hitsEff
+                hHitsEff.Fill(nMCHits)
+
+                hMtmEff = hList.mtmEff
+                hMtmEff.Fill(p)
+
+                # Fill completeness and purity histos
+                hCompleteness = hList.completeness
+                hCompleteness.Fill(bestComplete)
+
+                hPurity = hList.purity
+                hPurity.Fill(bestPurity)
 
 
     # Process hits and momentum histograms to get their efficiencies,
@@ -325,14 +330,14 @@ def createMCHistos(pars):
         hList.mtmEff.Write()
         hList.completeness.Write()
         hList.purity.Write()
-        
+
     # Close the files
     hMCOutFile.Close()
     mcFile.Close()
 
 
 def createVtxHistos(pars):
-    
+
     # Event vertex histograms
     hVtxList = defineVtxHistos(pars)
 
@@ -373,8 +378,8 @@ def createVtxHistos(pars):
     # Close files
     hEvtOutFile.Close()
     evtFile.Close()
-        
-            
+
+
 def setEffHist(hEff, hAll):
 
     # Modify the numerator hEff histogram to be the efficiency
@@ -449,7 +454,7 @@ def plotMCHistos(pars):
     pimHitsEff.Draw()
     text.DrawLatex(0.775, 0.25, '#pi^{-}')
 
-    theCanvas.Print('hierarchy_allHitsEff.png')    
+    theCanvas.Print('validation_allHitsEff.png')
 
     # Momentum efficiency
     maxMtm = 5.0
@@ -486,11 +491,11 @@ def plotMCHistos(pars):
     pimMtmEff.Draw()
     text.DrawLatex(0.775, 0.25, '#pi^{-}')
 
-    theCanvas.Print('hierarchy_allMtmEff.png')    
+    theCanvas.Print('validation_allMtmEff.png')
 
     # Close the histogram MC file
     hMCFile.Close()
-    
+
 
 def plotVtxHistos(pars):
 
@@ -517,7 +522,7 @@ def plotVtxHistos(pars):
     #vtxDX.Fit(vtxDXFun)
     vtxDX.Draw()
     ROOT.gPad.Update()
-    
+
     theCanvas.cd(2)
     vtxDY = hEvtFile.Get('allVtxDY')
     #vtxDYFun = setCBFun(vtxDY, cbFun, 0.0, 0.3)
@@ -565,13 +570,13 @@ def setCBFun(hist, cbFun, theMean = -999.0, theSigma = -999.0):
     fun.SetParameters(norm, mean, sigma, sigma, 1.2, 1.0, 1.2, 1.0)
     fun.SetParNames('N', '#mu', '#sigma_{L}', '#sigma_{R}',
                     '#alpha_{L}', 'n_{L}', '#alpha_{R}', 'n_{R}')
-    
+
     return fun
-    
+
 
 def run(args):
 
-    pars = parameters(args.mcFileName, args.mcTreeName, args.evtFileName, args.evtTreeName)
+    pars = parameters(args.mcFileName, args.mcTreeName)
 
     # Create the histograms. Write them to the ROOT output file with the name
     # "mcFileName_Histos.root", where mcFileName has the .root extension removed
@@ -583,21 +588,15 @@ def run(args):
     plotMCHistos(pars)
     plotVtxHistos(pars)
 
-    
+
 def processArgs(parser):
 
     # Process script arguments
-    parser.add_argument('--mcFileName', default='MCHierarchy.root', metavar='fileName',
-                        help='MC hierarchy ROOT file [default "MCHierarchy.root"]')
+    parser.add_argument('--mcFileName', default='Validation.root', metavar='fileName',
+                        help='Validation ROOT file [default "Validation.root"]')
 
-    parser.add_argument('--mcTreeName', default='MC', metavar='treeName',
-                        help='MC hierarchy ROOT tree [default "MC"]')
-
-    parser.add_argument('--evtFileName', default='EventHierarchy.root', metavar='fileName',
-                        help='Event hierarchy ROOT file [default "EventHierarchy.root"]')
-
-    parser.add_argument('--evtTreeName', default='Events', metavar='treeName',
-                        help='Event hierarchy ROOT tree [default "Events"]')
+    parser.add_argument('--mcTreeName', default='Validation', metavar='treeName',
+                        help='Validation ROOT tree [default "Validation"]')
 
     parser.add_argument('--createHistos', default=1, metavar='int', type=int,
                         help='Recreate histograms [1 = Yes (default), 0 = No]')
