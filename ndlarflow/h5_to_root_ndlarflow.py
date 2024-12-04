@@ -547,6 +547,10 @@ def find_tracks_in_packet(hit_num, flow_out):
     # Get fraction information and track information from hit
     trajFromHits=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/segments",hit_num][0][0]
     fracFromHits=flow_out["charge/calib_prompt_hits","charge/packets","mc_truth/packet_fraction",hit_num][0][0]
+    # For whatever reason, we sometimes get masked data in trajFromHits, so
+    # filter it out (we have to access some column, e.g. segment_id, to
+    # "collapse" the mask)
+    trajFromHits=trajFromHits.data[~trajFromHits['segment_id'].mask]
     for fracs in fracFromHits["fraction"][0]:
         total += fracs
         # get fraction information
