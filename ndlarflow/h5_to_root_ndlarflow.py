@@ -280,7 +280,7 @@ def main(argv=None):
             # Get event info for data
             event = f["charge/events/data"][ev_index]
             event_calib_prompt_hits=flow_out["charge/events/","charge/calib_prompt_hits", events["id"][ev_index]]
-            event_calib_final_hits=flow_out["charge/events/","charge/calib_final_hits", events["id"][ev_index]]
+            # event_calib_final_hits=flow_out["charge/events/","charge/calib_final_hits", events["id"][ev_index]]
             # fill event info
             eventID[0]= event['id']
             event_start_t[0] =int(event["ts_start"])
