@@ -341,6 +341,14 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
 
         ndsptree->GetEntry(iEvt);
 
+	// Stop processing the event if we have too many space points: reco takes too long
+	const int nSP = larsp->m_x->size();
+	if (parameters.m_maxMergedVoxels > 0 && nSP > parameters.m_maxMergedVoxels)
+        {
+	    std::cout << "SKIPPING EVENT: number of space points " << nSP << " > " << parameters.m_maxMergedVoxels << std::endl;
+	    continue;
+	}
+
         // Some truth information first
         if (parameters.m_dataFormat == Parameters::LArNDFormat::SPMC)
         {
@@ -351,7 +359,7 @@ void ProcessSPEvents(const Parameters &parameters, const Pandora *const pPrimary
         int hitCounter(0);
 
         // Loop over the space points and make them into caloHits
-        for (size_t isp = 0; isp < larsp->m_x->size(); ++isp)
+        for (size_t isp = 0; isp < nSP; ++isp)
         {
             const float voxelX = (*larsp->m_x)[isp];
             const float voxelY = (*larsp->m_y)[isp];
@@ -1858,7 +1866,7 @@ bool PrintOptions()
               << "    -p                     (optional) [Print status]" << std::endl
               << "    -N                     (optional) [Print event numbers]" << std::endl
               << "    -w width               (optional) [Voxel bin width (cm), default = 0.4 cm]" << std::endl
-              << "    -m maxMergedVoxels     (optional) [Skip events that have N(merged voxels) > maxMergedVoxels (default = no events skipped)]"
+              << "    -m maxMergedVoxels     (optional) [Skip events that have N(space points) or N(merged voxels) > maxMergedVoxels (default = no events skipped)]"
               << std::endl
               << "    -c minMipEquivE        (optional) [Minimum MIP equivalent energy, default = 0.3]" << std::endl
               << std::endl;
