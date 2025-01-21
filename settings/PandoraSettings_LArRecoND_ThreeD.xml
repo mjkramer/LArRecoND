@@ -78,7 +78,7 @@
 	<SelectRecoHits>true</SelectRecoHits>
     </algorithm>
 
-<!-- LArContent hierarchy tools MC and event-level information
+<!-- LArContent hierarchy tools MC and event-level information-->
     <algorithm type = "LArHierarchyValidation">
         <CaloHitListName>CaloHitList2D</CaloHitListName>
         <PfoListName>RecreatedPfos</PfoListName>
@@ -100,7 +100,6 @@
         <RemoveRecoNeutrons>true</RemoveRecoNeutrons>
 	<SelectRecoHits>true</SelectRecoHits>
     </algorithm>
--->
 
 <!-- Use old single neutrino event validation
     <algorithm type = "LArNeutrinoEventValidation">
