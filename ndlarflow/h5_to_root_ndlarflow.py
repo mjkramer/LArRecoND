@@ -664,9 +664,9 @@ def find_all_truth_in_spill(spillID, flow_out):
     for vertex_indices in vertex_indicesArray:
         vtx = flow_out["/mc_truth/interactions/data"][vertex_indices]
         nuVertexID.append(vtx["vertex_id"])
-        nuVertexX .append(vtx["vertex"][0])
-        nuVertexY .append(vtx["vertex"][1])
-        nuVertexZ .append(vtx["vertex"][2])
+        nuVertexX .append(vtx["x_vert"])
+        nuVertexY .append(vtx["y_vert"])
+        nuVertexZ .append(vtx["z_vert"])
         nuVertexE .append(vtx["Enu"]*MeV2GeV)
         nuPDG     .append(vtx["nu_pdg"])
         nuPx      .append(vtx["nu_4mom"][0]*MeV2GeV)
